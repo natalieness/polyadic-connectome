@@ -1,1 +1,4 @@
 pymaid_creds.py
+
+.vscode/
+__pycache__/
