@@ -142,11 +142,8 @@ ax.spines['right'].set_visible(False)
 y = add_figure(c, fig, 'postsynaptic_partners_distribution.png', x=x, y=y, width_scale=0.8)
 #then show 
 plt.show()
-# %%
 
-''' Check what i can learn about neuronal identities from the connector data
-'''
-
+#%% Identification or grouping of connection partners 
 
 
 #%% close pdf 

@@ -1,5 +1,14 @@
+
+#hide log in credentials
 pymaid_creds.py
 
+#hide vs code specific & cache files
 .vscode/
 __pycache__
+
+
+
+#hide any data or output files
+*.csv
+data/
 *.pdf
