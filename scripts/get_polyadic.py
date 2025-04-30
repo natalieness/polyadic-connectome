@@ -6,6 +6,7 @@ import contools
 import matplotlib.pyplot as plt
 import pymaid 
 import os
+from little_helper import inspect_data
 
 #get parent directory path
 current_file = __file__  # Replace with your file path if not in a script
@@ -30,22 +31,6 @@ all_links = pymaid.get_connectors(all_neurons)
 
 #%% inspect how to get all synaptic sites including neuronal fragments 
 
-def inspect_data(links_df, verbose=True):
-    n_entries = links_df.shape[0]
-    n_connectors = links_df['connector_id'].nunique()
-    n_skeletons = links_df['skeleton_id'].nunique()
-    n_nodes = links_df['node_id'].nunique()
-    n_postsynaptic = links_df[links_df['relation'] == 'postsynaptic_to'].shape[0]
-    n_presynaptic = links_df[links_df['relation'] == 'presynaptic_to'].shape[0]
-    if verbose:
-        print(f"Number of entries: {n_entries}")
-        print(f"Number of connectors: {n_connectors}")
-        print(f"Number of skeletons: {n_skeletons}")
-        print(f"Number of nodes: {n_nodes}")
-        print(f"Number of postsynaptic sites: {n_postsynaptic}")
-        print(f"Number of presynaptic sites: {n_presynaptic}")
-    return n_entries, n_connectors, n_skeletons, n_nodes, n_postsynaptic, n_presynaptic
-
 #include incomplete and partially differentiated neurons to compare numbers 
 links_wB = pymaid.get_connector_links(wanted_neurons, chunk_size=50)
 n_entries_wB, n_connectors_wB, n_skeletons_wB, n_nodes_wB, n_postsynaptic_wB, n_presynaptic_wB = inspect_data(links_wB, verbose=True)
@@ -57,9 +42,17 @@ data_numbers = pd.DataFrame()
 data_numbers['Object'] = ['entries', 'connectors', 'skeletons', 'nodes', 'postsynaptic sites', 'presynaptic sites'] 
 data_numbers['All connections to and from brain, input and access. neurons; except very incomplete, motor or partially diff.'] = [n_entries, n_connectors, n_skeletons, n_nodes, n_postsynaptic, n_presynaptic]
 data_numbers['All connections to and from brain, input and access. neurons'] = [n_entries_wB, n_connectors_wB, n_skeletons_wB, n_nodes_wB, n_postsynaptic_wB, n_presynaptic_wB]
-data_numbers.to_excel(parent_dir+'data/data_numbers.xlsx', index=False)
+data_numbers.to_excel(parent_dir+'/data/data_numbers.xlsx', index=False)
 
 n_pre_relations = links.groupby('relation').value_counts()
+
+#%% get connectors associated with connectors used here 
+all_connectors = links['connector_id'].unique()
+connector_details = pymaid.get_connector_details(all_connectors)
+#INFO  : Data for 218070 of 221015 unique connector IDs retrieved (pymaid) 
+
+
+
 # %% figure out what exactly a catmaid connector is
 
 #get everything associated with 1 connector ID
