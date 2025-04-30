@@ -7,6 +7,10 @@ import matplotlib.pyplot as plt
 import pymaid 
 import os
 
+#get parent directory path
+current_file = __file__  # Replace with your file path if not in a script
+current_dir = os.path.dirname(current_file)
+parent_dir = os.path.dirname(current_dir)
 
 #%% get connectors from catmaid
 
@@ -14,9 +18,9 @@ from pymaid_creds import url, name, password, token
 rm = pymaid.CatmaidInstance(url, token, name, password)
 
 # select neurons to include 
-all_neurons = pymaid.get_skids_by_annotation(['mw brain and inputs', 'mw brain accessory neurons'])
+wanted_neurons = pymaid.get_skids_by_annotation(['mw brain and inputs', 'mw brain accessory neurons'])
 remove_neurons = pymaid.get_skids_by_annotation(['mw brain very incomplete', 'mw partially differentiated', 'mw motor'])
-all_neurons = list(np.setdiff1d(all_neurons, remove_neurons)) # remove neurons that are incomplete or partially differentiated (as well as SEZ motor neurons)
+all_neurons = list(np.setdiff1d(wanted_neurons, remove_neurons)) # remove neurons that are incomplete or partially differentiated (as well as SEZ motor neurons)
 
 # get all synaptic sites associated with neurons 
 links = pymaid.get_connector_links(all_neurons, chunk_size=50)
@@ -26,20 +30,34 @@ all_links = pymaid.get_connectors(all_neurons)
 
 #%% inspect how to get all synaptic sites including neuronal fragments 
 
+def inspect_data(links_df, verbose=True):
+    n_entries = links_df.shape[0]
+    n_connectors = links_df['connector_id'].nunique()
+    n_skeletons = links_df['skeleton_id'].nunique()
+    n_nodes = links_df['node_id'].nunique()
+    n_postsynaptic = links_df[links_df['relation'] == 'postsynaptic_to'].shape[0]
+    n_presynaptic = links_df[links_df['relation'] == 'presynaptic_to'].shape[0]
+    if verbose:
+        print(f"Number of entries: {n_entries}")
+        print(f"Number of connectors: {n_connectors}")
+        print(f"Number of skeletons: {n_skeletons}")
+        print(f"Number of nodes: {n_nodes}")
+        print(f"Number of postsynaptic sites: {n_postsynaptic}")
+        print(f"Number of presynaptic sites: {n_presynaptic}")
+    return n_entries, n_connectors, n_skeletons, n_nodes, n_postsynaptic, n_presynaptic
 
+#include incomplete and partially differentiated neurons to compare numbers 
+links_wB = pymaid.get_connector_links(wanted_neurons, chunk_size=50)
+n_entries_wB, n_connectors_wB, n_skeletons_wB, n_nodes_wB, n_postsynaptic_wB, n_presynaptic_wB = inspect_data(links_wB, verbose=True)
 
 # %% inspect shape of data
-print(f"links df has {links.shape[0]} entries ")
+n_entries, n_connectors, n_skeletons, n_nodes, n_postsynaptic, n_presynaptic = inspect_data(links, verbose=True)
 
-n_connector = links['connector_id'].nunique()
-print(f"Number of connectors: {n_connector}")
-
-n_skeleton = links['skeleton_id'].nunique()
-
-print(f"Skeletons: {n_skeleton}")
-n_nodes = links['node_id'].nunique()
-
-rint(f"Number of nodes: {n_nodes}")
+data_numbers = pd.DataFrame()
+data_numbers['Object'] = ['entries', 'connectors', 'skeletons', 'nodes', 'postsynaptic sites', 'presynaptic sites'] 
+data_numbers['All connections to and from brain, input and access. neurons; except very incomplete, motor or partially diff.'] = [n_entries, n_connectors, n_skeletons, n_nodes, n_postsynaptic, n_presynaptic]
+data_numbers['All connections to and from brain, input and access. neurons'] = [n_entries_wB, n_connectors_wB, n_skeletons_wB, n_nodes_wB, n_postsynaptic_wB, n_presynaptic_wB]
+data_numbers.to_excel(parent_dir+'data/data_numbers.xlsx', index=False)
 
 n_pre_relations = links.groupby('relation').value_counts()
 # %% figure out what exactly a catmaid connector is
