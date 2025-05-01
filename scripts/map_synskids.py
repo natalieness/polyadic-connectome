@@ -44,9 +44,10 @@ connector_details = pymaid.get_connector_details(all_connectors)
 print(f"Of {len(all_connectors)} connectors in links, {len(connector_details)} have details")
 
 
-# %% Filter connectors by presynapse and check if they belong to annotated neurons
+# %% Filter connectors by presynapse 
 
 connectors = links['connector_id'].unique()
+n_connector = links['connector_id'].nunique()
 
 # Check if all connectors have at least one 'presynaptic_to' in the 'relation' column
 has_presynaptic = links.groupby('connector_id')['relation'].apply(lambda x: 'presynaptic_to' in x.values)
@@ -56,4 +57,34 @@ print(f"Number of connectors with at least one 'presynaptic_to': {has_presynapti
 connector_with_presyn = has_presynaptic[has_presynaptic].index
 #filter connectors by those with presynaptic sites
 links_with_presyn = links[links['connector_id'].isin(connector_with_presyn)]
+
+
+# %% Check if connectors with presynapse belong to any labelled neurons
+
+#get all skids that are in celltype_df (all labelled neurons)
+all_labelled_skids = celltype_df['skids'].explode().unique()
+
+# Check if all connectors with presynapse belong to any labelled neurons
+has_labelled_neuron = links_with_presyn.groupby('connector_id')['skeleton_id'].apply(lambda x: np.isin(x.values, all_labelled_skids).any())
+# %%
+
+n_labelled = has_labelled_neuron.sum()
+links_with_labelled = links_with_presyn[links_with_presyn['connector_id'].isin(has_labelled_neuron[has_labelled_neuron].index)]
+print(f"Number of connectors with presynapse that belong to labelled neurons: {n_labelled}")
+links_with_labelled = links_with_labelled.reset_index(drop=True)
+# %% easily map skids to celltypes
+
+skid_to_celltype = {
+    skid: row['name']
+    for _, row in celltype_df.iterrows()
+    for skid in row['skids']
+}
+def get_celltype_name(skid):
+    return skid_to_celltype.get(skid, "NA")  # Returns "NA" if skid is not found
+
+
+# %% to do set this up so you can use connector_details to easily check identity at each intersection
+
+
+
 
