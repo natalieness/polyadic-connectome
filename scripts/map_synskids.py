@@ -85,6 +85,11 @@ def get_celltype_name(skid):
 
 # %% to do set this up so you can use connector_details to easily check identity at each intersection
 
+# remove connector details without presynaptic site 
+connector_details = connector_details.dropna(subset=['presynaptic_to'])
+
+# map skid ids in connector details to celltypes
 
 
 
+# %%
