@@ -2,6 +2,8 @@
 postsynaptic sites. Using hand annotated neuronal celltypes from catmaid
 '''
 #%%
+from itertools import chain
+from collections import Counter
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -88,8 +90,60 @@ def get_celltype_name(skid):
 # remove connector details without presynaptic site 
 connector_details = connector_details.dropna(subset=['presynaptic_to'])
 
-# map skid ids in connector details to celltypes
+
+
+# %% # map skid ids in connector details to celltypes
+
+connector_details['presynaptic_celltype'] = connector_details['presynaptic_to'].apply(get_celltype_name)
+
+def celltype_col_for_list(connector_df, col_name, new_col_name='postsynaptic_celltype'):
+    df_series = connector_df[col_name]
+    new_df_series = []
+    for l in df_series:
+        #each element is a list of skids 
+        new_l = []
+        for skid in l:
+            new_l.append(get_celltype_name(skid))
+        new_df_series.append(new_l)
+    connector_df[new_col_name] = new_df_series
+
+celltype_col_for_list(connector_details, 'postsynaptic_to', new_col_name='postsynaptic_celltype')
+
+
+# %% create subset of connector details with only labelled neurons
+connector_details_presyn_labelled = connector_details[connector_details['presynaptic_celltype'] != 'NA']
+labelled_connectors = connector_details_presyn_labelled[~connector_details_presyn_labelled['postsynaptic_celltype'].apply(lambda x: 'NA' in x)]
+print(f"Number of connectors with only labelled presynaptic and postsynaptic celltypes: {len(labelled_connectors)}")
+# %% get general description of labelled connectors dataset
+
+n_presynaptic = labelled_connectors['presynaptic_to'].nunique()
+print(f"Number of unique presynaptic sites: {n_presynaptic}")
+unique_postsynaptic = set(chain.from_iterable(labelled_connectors['postsynaptic_to']))
+n_postsynaptic = len(unique_postsynaptic)
+print(f"Number of unique postsynaptic sites: {n_postsynaptic}")
+
+for ct in celltype_df['name'].unique():
+    n_presynaptic_celltype = labelled_connectors[labelled_connectors['presynaptic_celltype'] == ct]['presynaptic_to'].nunique()
+    post_cts_flat = chain.from_iterable(labelled_connectors['postsynaptic_celltype'])
+    counts = Counter(post_cts_flat)
+    n_postsynaptic_celltype = counts[ct]
+    print(f"Number of {ct} presynaptic sites: {n_presynaptic_celltype}, postsynaptic sites: {n_postsynaptic_celltype}")
 
 
 
-# %%
+
+# %% get correlation between presynaptic and postsynaptic celltypes (independent of connector)
+
+ct_names = celltype_df['name'].unique()
+
+def get_ct_index(ct_name):
+    return np.where(ct_names == ct_name)[0][0]
+
+arr = np.zeros((len(ct_names), len(ct_names)))
+
+#iterate through connectors 
+for row in labelled_connectors.iterrows():
+    row_presyn = row[1]['presynaptic_celltype']
+    row_postsyn = row[1]['postsynaptic_celltype']
+    #get index of pr
+
