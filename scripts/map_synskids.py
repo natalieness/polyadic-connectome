@@ -82,7 +82,7 @@ skid_to_celltype = {
     for _, row in celltype_df.iterrows()
     for skid in row['skids']
 }
-def get_celltype_name(skid):
+def get_celltype_name(skid, skid_to_celltype=skid_to_celltype):
     return skid_to_celltype.get(skid, "NA")  # Returns "NA" if skid is not found
 
 
@@ -336,6 +336,34 @@ def get_P_alone_all(df_series, ct_names):
     return alone
 
 ct_P_alone = get_P_alone_all(labelled_connectors['postsynaptic_celltype'], celltype_df['name'])
+
+
+# %% have a look at the data in hypergraphs 
+
+# construct a multilevel hypergraph to represent the polyadic data structure
+
+def construct_polayadic_incidence_matrix(list_of_connectors):
+    ''' Construct a polyadic incidence matrix from a list of connectors '''
+    # force list 
+    if not isinstance(list_of_connectors, list):
+        list_of_connectors = list(list_of_connectors)
+    # get all unique skids
+    all_skids = tuple(set(chain.from_iterable(list_of_connectors)))
+    n_skids = len(all_skids)
+    n_connectors = len(list_of_connectors)
+
+    # create incidence matrix 
+    IM = np.zeros((n_skids, n_connectors))
+    for e, connector in enumerate(list_of_connectors):
+        for skid in connector:
+            skid_idx = list(all_skids).index(skid)
+            IM[skid_idx, e] += 1
+    return IM, all_skids
+
+def construct_group_projection_matrix(IM, all_skids):
+
+
+IM, all_skids = construct_polayadic_incidence_matrix(labelled_connectors['postsynaptic_to'])
 
 
 # %%
