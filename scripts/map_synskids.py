@@ -499,7 +499,7 @@ G = normalize_weights(G, factor='mean')
 def plot_nx_graph(G, plot_scale=1):
 
     #pos = nx.circular_layout(G.subgraph(G.nodes))
-    pos - nx.nx_agraph.graphviz_layout(G, prog='neato')
+    pos = nx.nx_agraph.graphviz_layout(G, prog='twopi')
     edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
 
     #scale all weights by a factor for visualization
