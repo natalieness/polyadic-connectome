@@ -44,7 +44,7 @@ def construct_group_projection_matrix(IM, all_skids, skid_to_celltype):
 
 ### Functions to construct a projected graph ###
 
-def get_group_pair_counts(hyperedges, vertex_to_group=skid_to_celltype):
+def get_group_pair_counts(hyperedges, vertex_to_group):
     # Track group pair co-occurrence counts
     group_pair_counts = defaultdict(int)
     for hedge in hyperedges:
@@ -61,7 +61,7 @@ def get_group_pair_counts(hyperedges, vertex_to_group=skid_to_celltype):
                 group_pair_counts[(g, g)] += 1
     return group_pair_counts
 
-def build_group_graph(group_pair_counts, vertex_to_group=skid_to_celltype):
+def build_group_graph(group_pair_counts, vertex_to_group):
     G = nx.Graph()
     # Add nodes for each group
     all_groups = set(vertex_to_group.values())

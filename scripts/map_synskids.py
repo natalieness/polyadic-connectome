@@ -23,7 +23,6 @@ from scripts.little_helper import inspect_data, get_celltype_dict, get_celltype_
 from scripts.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix
 from scripts.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph
 
-
 rm = pymaid.CatmaidInstance(url, token, name, password)
 
 #get parent directory path
@@ -391,7 +390,7 @@ G = build_group_graph(group_pair_counts, vertex_to_group=skid_to_celltype)
 ''' TODO: probably normalise weights based on group size or number of edges
 '''
 
-G = graph_normalize_weights(G, factor='mean')
+G = graph_normalize_weights(G, factor='jaccard')
 
 
 # %% plot group graph

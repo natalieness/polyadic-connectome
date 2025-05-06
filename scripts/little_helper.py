@@ -29,7 +29,7 @@ def get_celltype_dict(celltype_df):
     }
     return skid_to_celltype
 
-def get_celltype_name(skid, skid_to_celltype=skid_to_celltype):
+def get_celltype_name(skid, skid_to_celltype):
     return skid_to_celltype.get(skid, "NA")  # Returns "NA" if skid is not found
 
 ### Mapping skids to cell types in specific structures ###
