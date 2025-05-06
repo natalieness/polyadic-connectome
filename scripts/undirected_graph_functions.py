@@ -1,6 +1,16 @@
 ''' Functions to create and manipulate matrices and graphs representing undirected interactions and
 synaptic groups, and match them to cell type categories.'''
 
+from itertools import chain
+from collections import defaultdict
+from itertools import combinations
+import os
+
+import networkx as nx
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
 
 ### Functions to construct a 2-level hypergraph to represent polyadic synaptic groups ###
 
@@ -98,11 +108,17 @@ def graph_normalize_weights(G, factor='mean'):
 
 ### Functions to plot projected group graphs ###
 
-def plot_nx_graph(G, plot_scale=1, save_fig=False, path=''):
+def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path=''):
 
     #pos = nx.circular_layout(G.subgraph(G.nodes))
-    pos = nx.nx_agraph.graphviz_layout(G, prog='twopi')
+    pos = nx.nx_agraph.graphviz_layout(G, prog='fdp')
     edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
+
+    #get colors for nodes 
+    if node_colors is None:
+        node_colors = ['lightblue' for _ in G.nodes()]
+    else:
+        node_colors = [node_colors.get(node, 'lightblue') for node in G.nodes()]
 
     #scale all weights by a factor for visualization
     edge_weights= [i*plot_scale for i in edge_weights]

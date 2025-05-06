@@ -34,13 +34,13 @@ def get_celltype_name(skid, skid_to_celltype):
 
 ### Mapping skids to cell types in specific structures ###
 
-def celltype_col_for_list(connector_df, col_name, new_col_name='postsynaptic_celltype'):
+def celltype_col_for_list(connector_df, col_name, skid_to_celltype, new_col_name='postsynaptic_celltype'):
     df_series = connector_df[col_name]
     new_df_series = []
     for l in df_series:
         #each element is a list of skids 
         new_l = []
         for skid in l:
-            new_l.append(get_celltype_name(skid))
+            new_l.append(get_celltype_name(skid, skid_to_celltype))
         new_df_series.append(new_l)
     connector_df[new_col_name] = new_df_series

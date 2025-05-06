@@ -101,9 +101,9 @@ connector_details = connector_details.dropna(subset=['presynaptic_to'])
 
 # %% # map skid ids in connector details to celltypes
 
-connector_details['presynaptic_celltype'] = connector_details['presynaptic_to'].apply(get_celltype_name)
+connector_details['presynaptic_celltype'] = connector_details['presynaptic_to'].apply(lambda x: get_celltype_name(x, skid_to_celltype=skid_to_celltype))
 
-celltype_col_for_list(connector_details, 'postsynaptic_to', new_col_name='postsynaptic_celltype')
+celltype_col_for_list(connector_details, 'postsynaptic_to', skid_to_celltype=skid_to_celltype, new_col_name='postsynaptic_celltype')
 
 
 # %% create subset of connector details with only labelled neurons
@@ -390,12 +390,12 @@ G = build_group_graph(group_pair_counts, vertex_to_group=skid_to_celltype)
 ''' TODO: probably normalise weights based on group size or number of edges
 '''
 
-G = graph_normalize_weights(G, factor='jaccard')
+G = graph_normalize_weights(G, factor='mean')
 
 
 # %% plot group graph
-
-plot_nx_graph(G, plot_scale=1, save_fig=True, path=path_for_data+'group_graph.png')
+graph_name = 'group_graph_jaccard.png'
+plot_nx_graph(G, plot_scale=6, save_fig=True, path=path_for_data+graph_name)
 
 # %% plot group graph from perspective of one group 
 
@@ -408,5 +408,96 @@ if not os.path.exists(path_for_subgraphs):
 for ct in celltype_df['name'].unique():
     plt.figure()
     centered_subgraph(G, ct, norm='group_participation', plot_scale=20, save_fig=True, path=path_for_subgraphs+f'{ct}_subgraph.png')
+
+# %% Examining group hub structure - degree 
+
+degrees = G.degree
+degrees_ordered = sorted(degrees, key=lambda x: x[1], reverse=True)
+print(f"Groups by degree: {degrees_ordered}")
+
+weighted_degrees = G.degree(weight='weight')
+weighted_degrees_ordered = sorted(weighted_degrees, key=lambda x: x[1], reverse=True)
+print(f"Groups by weighted degree: {weighted_degrees_ordered}")
+
+# betweenness centrality
+bw_centrality = nx.betweenness_centrality(G, weight='weight')
+bw_centrality_ordered = sorted(bw_centrality.items(), key=lambda x: x[1], reverse=True)
+print(f"Groups by betweenness centrality: {bw_centrality_ordered}")
+
+# connected to other well connected groups
+closeness = nx.closeness_centrality(G, distance='weight')
+closeness_ordered = sorted(closeness.items(), key=lambda x: x[1], reverse=True)
+print(f"Groups by closeness centrality: {closeness_ordered}")
+
+# %% Examining group hub structure - plotting 
+# Convert to DataFrame for easier plotting
+def plot_networkx_characteristics(wd, title, xlabel='Node', ylabel='Group', fsize=(3,6)):
+    # convert to dataframe 
+    wd = pd.DataFrame.from_dict(dict(wd), orient='index', columns=['Weighted Degree'])
+
+    # Create a heatmap
+    fig, ax = plt.subplots(figsize=fsize)
+    sns.heatmap(wd, ax=ax, annot=True, fmt=".2f", cmap="coolwarm", cbar=True, linewidths=0.5)
+
+    # Add labels and title
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.tick_params(axis='y', rotation=0)  # Keep y-axis labels horizontal
+    return fig 
+
+plot_networkx_characteristics(weighted_degrees_ordered, title='Weighted Degree')
+plot_networkx_characteristics(bw_centrality_ordered, title='Betweenness Centrality')
+plot_networkx_characteristics(closeness_ordered, title='Closeness Centrality')
+
+
+
+# %%
+from networkx.algorithms.community import greedy_modularity_communities
+
+communities = list(greedy_modularity_communities(G, weight='weight'))
+
+#alternative community detection algorithm
+#from networkx.algorithms.community import kernighan_lin_bisection
+#cluster = kernighan_lin_bisection(G)
+
+#check modularity of the communities
+from networkx.algorithms.community.quality import modularity
+
+mod_score = modularity(G, communities, weight='weight')
+print("Communities:")
+for i, community in enumerate(communities, start=1):
+    print(f"Community {i}: {community}")
+
+print(f"Modularity: {mod_score:.3f}")
+# %% plot graph with communities
+#generate color table for communities
+colors = plt.cm.tab10(range(len(communities)))
+# map communities to colors 
+node_colors = {}
+all_colors = ['#76A0EA', '#EA76D9', '#EAC076', '#76EA87']
+for e, community in enumerate(communities):
+    community_color = all_colors[e]
+    for node in community:
+        node_colors[node] = community_color
+
+graph_name = 'group_graph_communities.png'
+plot_nx_graph(G, node_colors=node_colors, plot_scale=1, save_fig=True, path=path_for_data+graph_name)
+# %%
+
+W = sum(d['weight'] for _, _, d in G.edges(data=True))
+obs_exp_ratio = {}
+for u, v in G.edges():
+    s_u = sum(G[u][nbr]['weight'] for nbr in G[u])
+    s_v = sum(G[v][nbr]['weight'] for nbr in G[v])
+    expected = (s_u * s_v) / (2 * W)
+    observed = G[u][v]['weight']
+    ratio = observed / expected if expected > 0 else 0
+    expected_weights[(u, v)] = {'expected': expected, 'observed': observed, 'obs/exp': ratio}
+    print (f"Edge ({u}, {v}): Expected: {expected}, Observed: {observed}, Ratio: {ratio}")
+
+obs_exp_ratio = {edge: data['obs/exp'] for edge, data in expected_weights.items()}
+obs_exp_ratio_sorted = sorted(obs_exp_ratio.items(), key=lambda x: x[1], reverse=True)
+
 
 # %%
