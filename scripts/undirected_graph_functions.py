@@ -111,7 +111,7 @@ def graph_normalize_weights(G, factor='mean'):
 def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path=''):
 
     #pos = nx.circular_layout(G.subgraph(G.nodes))
-    pos = nx.nx_agraph.graphviz_layout(G, prog='fdp')
+    pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
     edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
 
     #get colors for nodes 
@@ -126,7 +126,7 @@ def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path=''):
         G, pos,
         with_labels=True,
         width=edge_weights,  # Line thickness ~ frequency
-        node_color='lightblue',
+        node_color=node_colors,
         node_size=2000,
         font_size=10,
         edge_color='black' 
