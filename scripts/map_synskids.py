@@ -394,7 +394,7 @@ G = graph_normalize_weights(G, factor='mean')
 
 
 # %% plot group graph
-graph_name = 'group_graph_jaccard.png'
+graph_name = 'group_graph_.png'
 plot_nx_graph(G, plot_scale=6, save_fig=True, path=path_for_data+graph_name)
 
 # %% plot group graph from perspective of one group 
@@ -487,6 +487,7 @@ plot_nx_graph(G, node_colors=node_colors, plot_scale=1, save_fig=True, path=path
 
 W = sum(d['weight'] for _, _, d in G.edges(data=True))
 obs_exp_ratio = {}
+expected_weights = {}
 for u, v in G.edges():
     s_u = sum(G[u][nbr]['weight'] for nbr in G[u])
     s_v = sum(G[v][nbr]['weight'] for nbr in G[v])
@@ -498,6 +499,7 @@ for u, v in G.edges():
 
 obs_exp_ratio = {edge: data['obs/exp'] for edge, data in expected_weights.items()}
 obs_exp_ratio_sorted = sorted(obs_exp_ratio.items(), key=lambda x: x[1], reverse=True)
-
+oers = dict(obs_exp_ratio_sorted[:20]) # top 20
 
 # %%
+
