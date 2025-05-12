@@ -85,5 +85,3 @@ def get_P_alone_all(df_series, ct_names):
         alone.append(get_P_alone(df_series, ct))
     return alone
 
-ct_P_alone = get_P_alone_all(labelled_connectors['postsynaptic_celltype'], celltype_df['name'])
-

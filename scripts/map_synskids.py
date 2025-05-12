@@ -20,7 +20,7 @@ from pymaid_creds import url, name, password, token
 
 # local imports
 from scripts.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
-from scripts.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix
+from scripts.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix, get_skid_pair_counts, build_skid_graph
 from scripts.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph
 from scripts.undirected_postoccurency_matrix_functions import compute_relative_covariance, jaccard_similarity, precompute_P_marginal, compute_PMI
 
@@ -159,6 +159,8 @@ fig, ax = plt.subplots(figsize=(10, 8))
 Ps_marginal = precompute_P_marginal(post_cooccurency)
 pmi = compute_PMI(post_cooccurency, Ps_marginal)
 
+
+
 # set lower triangle to nan
 plot_pmi = pmi.copy()
 plot_pmi[lower_triangle_indices] = np.nan
@@ -174,6 +176,7 @@ fig, ax = plt.subplots(figsize=(10, 8))
 
 IM, all_skids = construct_polyadic_incidence_matrix(labelled_connectors['postsynaptic_to'])
 GPM, all_celltypes = construct_group_projection_matrix(IM, all_skids, skid_to_celltype)
+
 
 
 # %% describe based on matrices 
@@ -316,7 +319,7 @@ for e, community in enumerate(communities):
 
 graph_name = 'group_graph_communities.png'
 plot_nx_graph(G, node_colors=node_colors, plot_scale=1, save_fig=True, path=path_for_data+graph_name)
-# %%
+# %% observed vs expected weights for group pairs - not sure what to do with this yet
 
 W = sum(d['weight'] for _, _, d in G.edges(data=True))
 obs_exp_ratio = {}
@@ -334,5 +337,12 @@ obs_exp_ratio = {edge: data['obs/exp'] for edge, data in expected_weights.items(
 obs_exp_ratio_sorted = sorted(obs_exp_ratio.items(), key=lambda x: x[1], reverse=True)
 oers = dict(obs_exp_ratio_sorted[:20]) # top 20
 
-# %%
+# %% examine skid-to-skid grouping 
 
+skid_pair_counts = get_skid_pair_counts(hyperedges, all_skids)
+S = build_skid_graph(skid_pair_counts, all_skids)
+
+
+
+
+# %%

@@ -106,6 +106,26 @@ def graph_normalize_weights(G, factor='mean'):
         print("Unknown normalization factor. No normalization applied.")
     return G
 
+### Functions to construct a skid-to-skid graph ###
+##also construct a matrix that is centered on the actual neurons and contains their post-occurency 
+def get_skid_pair_counts(hyperedges, all_skids):
+    ''' Get pairwise co-occurency of polyadic edges for each skid to build graph
+    '''
+    skid_pair_counts = defaultdict(int)
+    for hedge in hyperedges:
+        for s1, s2 in combinations(sorted(hedge), 2):
+            skid_pair_counts[(s1, s2)] += 1
+    return skid_pair_counts
+
+def build_skid_graph(skid_pair_counts, all_skids):
+    G = nx.Graph()
+    # Add nodes for each group
+    G.add_nodes_from(all_skids)
+
+    for (s1, s2), count in skid_pair_counts.items():
+        G.add_edge(s1, s2, weight=count)
+    return G
+
 ### Functions to plot projected group graphs ###
 
 def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path=''):
