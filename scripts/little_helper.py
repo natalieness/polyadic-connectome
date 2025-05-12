@@ -32,6 +32,9 @@ def get_celltype_dict(celltype_df):
 def get_celltype_name(skid, skid_to_celltype):
     return skid_to_celltype.get(skid, "NA")  # Returns "NA" if skid is not found
 
+def get_ct_index(ct_name, ct_names):
+    return np.where(ct_names == ct_name)[0][0]
+
 ### Mapping skids to cell types in specific structures ###
 
 def celltype_col_for_list(connector_df, col_name, skid_to_celltype, new_col_name='postsynaptic_celltype'):

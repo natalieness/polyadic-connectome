@@ -19,9 +19,10 @@ import pymaid
 from pymaid_creds import url, name, password, token
 
 # local imports
-from scripts.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list
+from scripts.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
 from scripts.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix
 from scripts.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph
+from scripts.undirected_postoccurency_matrix_functions import compute_relative_covariance, jaccard_similarity, precompute_P_marginal, compute_PMI
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
 
@@ -43,6 +44,7 @@ print(f"Total number of skids: {n_skids}")
 
 # get dictionary to map skids to celltypes 
 skid_to_celltype = get_celltype_dict(celltype_df)
+ct_names = celltype_df['name'].unique()
 
 #%% get synaptic sites from catmaid and describe data
 
@@ -97,62 +99,6 @@ for ct in celltype_df['name'].unique():
     n_postsynaptic_celltype = counts[ct]
     print(f"Number of {ct} presynaptic sites: {n_presynaptic_celltype}, postsynaptic sites: {n_postsynaptic_celltype}")
 
-
-
-
-# %% get correlation between presynaptic and postsynaptic celltypes (independent of connector)
-
-ct_names = celltype_df['name'].unique()
-
-def get_ct_index(ct_name):
-    return np.where(ct_names == ct_name)[0][0]
-
-arr = np.zeros((len(ct_names), len(ct_names)))
-
-#iterate through connectors 
-for row in labelled_connectors.iterrows():
-    row_presyn = row[1]['presynaptic_celltype']
-    row_postsyn = row[1]['postsynaptic_celltype']
-    #get index of presynaptic celltype
-    presyn_index = get_ct_index(row_presyn)
-    #iterate through postsynaptic celltypes
-    for post_ct in row_postsyn:
-        #get index of postsynaptic celltype
-        post_index = get_ct_index(post_ct)
-        #increment the value in the array
-        arr[presyn_index, post_index] += 1
-
-
-fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(arr, annot=True, fmt=".0f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names)
-ax.set_xlabel('Postsynaptic Celltype')
-ax.set_ylabel('Presynaptic Celltype')
-
-#%% compute relative to total presynaptic connections per cell type 
-
-def compute_relative(arr):
-    arr_norm = np.zeros(arr.shape)
-    for i in range(arr.shape[0]):
-        row_sum = np.sum(arr[i, :])
-        for j in range(arr.shape[1]):
-            arr_norm[i, j] = arr[i, j] / row_sum if row_sum != 0 else 0
-    return arr_norm
-
-arr_norm = compute_relative(arr)
-
-fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(arr_norm, annot=True, fmt=".2f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names)
-ax.set_xlabel('Postsynaptic Celltype')
-ax.set_ylabel('Presynaptic Celltype')
-
-
-
-# %%
-#clsutermap to sort by similarity
-plt.figure()
-sns.clustermap(arr, annot=True, fmt=".0f", cmap='magma', xticklabels=ct_names, yticklabels=ct_names)
-
-
 # %% get co-occurency matrix between postsynaptic celltypes (independent of presynaptic partner)
 
 post_cooccurency = np.zeros((len(ct_names), len(ct_names)))
@@ -163,8 +109,8 @@ for row in labelled_connectors.iterrows():
     for e, post_ct in enumerate(row_postsyn):
         for e2, post_ct2 in enumerate(row_postsyn[e+1:]):
             #get index of postsynaptic celltype
-            post_index = get_ct_index(post_ct)
-            post_index2 = get_ct_index(post_ct2)
+            post_index = get_ct_index(post_ct, ct_names)
+            post_index2 = get_ct_index(post_ct2, ct_names)
             #increment the value in the array
             post_cooccurency[post_index, post_index2] += 1
 
@@ -184,46 +130,17 @@ plot_post_cooccurency[lower_triangle_indices] = np.nan
 
 
 fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(plot_post_cooccurency, annot=True, fmt=".0f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(post_cooccurency))
-ax.set_xlabel('Celltype')
-ax.set_ylabel('Celltype') 
+#sns.heatmap(plot_post_cooccurency, annot=True, fmt=".0f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(post_cooccurency))
+#ax.set_xlabel('Celltype')
+#ax.set_ylabel('Celltype') 
 
-#%% compute relative covariance of postsynaptic celltypes
-
-def compute_relative_covariance(post_cooccurency):
-    #mirror matrix to be able to compute covariance relative to each row 
-    upper_triangle = np.triu(post_cooccurency, k=1)
-    mirrored = post_cooccurency + upper_triangle.T
-    row_sums = np.sum(mirrored, axis=1)
-    cov = np.zeros(post_cooccurency.shape)
-    for i in range(mirrored.shape[0]):
-        for j in range(mirrored.shape[1]):
-            cov[i, j] = mirrored[i, j] / row_sums[i] 
-
-    return cov
+# compute relative covariance of postsynaptic celltypes
 
 relative_cov = compute_relative_covariance(post_cooccurency)
 fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(relative_cov, annot=True, fmt=".2f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(post_cooccurency))
+#sns.heatmap(relative_cov, annot=True, fmt=".2f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(post_cooccurency))
 
-
-
-
-
-
-# %% Jaccard similarity to normalize for how frequent individual items are
-
-def jaccard_similarity(arr):
-    ''' Calculate jaccard similarity based on a co-occurency matrix '''
-    jaccard_sim = np.zeros(arr.shape)
-    for i in range(arr.shape[0]):
-        for j in range(arr.shape[1]):
-            intersection = arr[i, j]
-            print(f"Intersection: {intersection}")
-            union = np.sum(arr[i, :]) + np.sum(arr[:, j]) - intersection
-            print(f"Union: {union}")
-            jaccard_sim[i, j] = intersection / union if union != 0 else 0
-    return jaccard_sim
+#  Jaccard similarity to normalize for how frequent individual items are
 
 post_jaccard = jaccard_similarity(post_cooccurency)
 
@@ -232,41 +149,12 @@ plot_jaccard = post_jaccard.copy()
 plot_jaccard[lower_triangle_indices] = np.nan
 
 fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(plot_jaccard, annot=True, fmt=".2f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(plot_jaccard))
+#sns.heatmap(plot_jaccard, annot=True, fmt=".2f", cmap='magma', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(plot_jaccard))
 
 # notelarge relative covariance of one group with another can be masked by frequent occurence of 
 # only one of the groups
 
-
-# %% compute pointwise conditional probability
-
-# compute marginal probability of each cell type co-occuring with itself or other 
-def get_P_marginal(arr, ct_index):
-    num = np.sum(arr[ct_index, :]) #sum of all postsynaptic celltypes pairs involving this cell type
-    denom = np.sum(arr) #sum of all postsynaptic celltype pairs 
-    return num / denom
-
-def precompute_P_marginal(arr):
-    Ps_marginal = []
-    for i in range(arr.shape[0]):
-        Ps_marginal.append(get_P_marginal(arr, i))
-    return Ps_marginal
-
-def get_P_ij(arr, ct_index_i, ct_index_j):
-    num = arr[ct_index_i, ct_index_j] #sum of all postsynaptic celltypes pairs involving this cell type
-    denom = np.sum(arr) #sum of all postsynaptic celltype pairs 
-    return num / denom
-
-def compute_PMI(arr, Ps_marginal):
-    pmi = np.zeros(arr.shape)
-    for i in range(arr.shape[0]):
-        for j in range(i, arr.shape[1]):
-            Pij = get_P_ij(arr, i, j)
-            pmi[i, j] = np.log2(Pij / (Ps_marginal[i] * Ps_marginal[j]))
-            if Pij == 0:
-                pmi[i, j] = np.nan
-    return pmi
-
+#  compute pointwise conditional probability
 
 Ps_marginal = precompute_P_marginal(post_cooccurency)
 pmi = compute_PMI(post_cooccurency, Ps_marginal)
@@ -276,33 +164,8 @@ plot_pmi = pmi.copy()
 plot_pmi[lower_triangle_indices] = np.nan
 
 fig, ax = plt.subplots(figsize=(10, 8))
-sns.heatmap(plot_pmi, annot=True, fmt=".2f", cmap='PiYG', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(plot_pmi))
+#sns.heatmap(plot_pmi, annot=True, fmt=".2f", cmap='PiYG', cbar=True, xticklabels=ct_names, yticklabels=ct_names, mask=np.isnan(plot_pmi))
 
-
-
-
-# %% probability of occuring alone 
-
-
-## DOUBLE CHECK THIS CONCEPTUALLY
-
-def get_P_alone(df_series, ct_name):
-    n_ct = 0
-    n_sets = 0 
-    for l in df_series:
-        n_sets += 1
-        if ct_name in l:
-            if len(l) ==1:
-                n_ct += 1
-    return n_ct / n_sets
-
-def get_P_alone_all(df_series, ct_names):
-    alone = []
-    for ct in ct_names.unique():
-        alone.append(get_P_alone(df_series, ct))
-    return alone
-
-ct_P_alone = get_P_alone_all(labelled_connectors['postsynaptic_celltype'], celltype_df['name'])
 
 
 # %% have a look at the data in hypergraphs 
