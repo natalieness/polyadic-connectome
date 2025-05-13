@@ -21,7 +21,7 @@ from pymaid_creds import url, name, password, token
 # local imports
 from scripts.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
 from scripts.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix, get_skid_pair_counts, build_skid_graph
-from scripts.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph
+from scripts.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph, plot_very_large_graph
 from scripts.undirected_postoccurency_matrix_functions import compute_relative_covariance, jaccard_similarity, precompute_P_marginal, compute_PMI
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
@@ -229,8 +229,8 @@ G = build_group_graph(group_pair_counts, vertex_to_group=skid_to_celltype)
 G = graph_normalize_weights(G, factor='mean')
 
 
-# %% plot group graph
-graph_name = 'group_graph_.png'
+# %% plot group graph  --- 
+graph_name = 'group_graph__.png'
 plot_nx_graph(G, plot_scale=6, save_fig=True, path=path_for_data+graph_name)
 
 # %% plot group graph from perspective of one group 
@@ -318,7 +318,8 @@ for e, community in enumerate(communities):
         node_colors[node] = community_color
 
 graph_name = 'group_graph_communities.png'
-plot_nx_graph(G, node_colors=node_colors, plot_scale=1, save_fig=True, path=path_for_data+graph_name)
+save_fig = False
+plot_nx_graph(G, node_colors=node_colors, plot_scale=1, save_fig=save_fig, path=path_for_data+graph_name)
 # %% observed vs expected weights for group pairs - not sure what to do with this yet
 
 W = sum(d['weight'] for _, _, d in G.edges(data=True))
@@ -342,7 +343,44 @@ oers = dict(obs_exp_ratio_sorted[:20]) # top 20
 skid_pair_counts = get_skid_pair_counts(hyperedges, all_skids)
 S = build_skid_graph(skid_pair_counts, all_skids)
 
+# %%
+
+plot_very_large_graph(S, node_size=1, plot_scale=0.01, save_fig=False)
+
+#%% plot graph of nodes coloured by celltype 
 
 
+'''TO DO: 
+1. get node colors based on celltype
+2. graph with coloured in nodes'''
 
+node_colors = {}
+#all_colors = ['#76A0EA', '#EA76D9', '#EAC076', '#76EA87'] #12 colours 
+colors = plt.cm.tab20.colors[:12] 
+
+for e, skid in enumerate(all_skids):
+    #get celltype index 
+
+    ...
+
+    
+    skid_colour = all_colors[e]
+    for node in community:
+        node_colors[node] = community_color
+
+
+# %%
+
+node_communities = list(greedy_modularity_communities(S, weight='weight', resolution=1.9, best_n=12))
+
+print(f"Found {len(node_communities)} communities")
+for i, community in enumerate(node_communities):
+    print(f"Community {i}: {len(community)} nodes")
+# %%
+from networkx.algorithms.community import louvain_communities
+node_communities = louvain_communities(S, weight='weight')
+
+print(f"Found {len(node_communities)} communities with Louvain algorithm")
+for i, community in enumerate(node_communities):
+    print(f"Community {i}: {len(community)} nodes")
 # %%

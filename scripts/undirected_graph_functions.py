@@ -155,6 +155,32 @@ def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path=''):
     if save_fig:
         plt.savefig(path)
 
+def plot_very_large_graph(G, node_colors=None, node_size=1, plot_scale=0.01, save_fig=False, path=''):
+    #pos = nx.circular_layout(G.subgraph(G.nodes))
+    pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
+    edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
+
+    #get colors for nodes 
+    if node_colors is None:
+        node_colors = ['lightblue' for _ in G.nodes()]
+    else:
+        node_colors = [node_colors.get(node, 'lightblue') for node in G.nodes()]
+
+    #scale all weights by a factor for visualization
+    edge_weights= [i*plot_scale for i in edge_weights]
+    nx.draw(
+        G, pos,
+        with_labels=False,
+        width=edge_weights,  # Line thickness ~ frequency
+        node_color=node_colors,
+        node_size=node_size,
+        font_size=10,
+        edge_color='black' 
+    )
+    plt.title("Network Graph")
+    if save_fig:
+        plt.savefig(path)
+
 def centered_subgraph(G, center_node, norm='group_participation', plot_scale=20, save_fig=False, path=''):
     '''
     Normalization options for weights:
