@@ -99,3 +99,15 @@ all_nodes = pd.read_csv(path_for_data+'axo_den_labelled_nodes.csv')
 all_nodes = all_nodes[all_nodes['compartment'].notna()]
 node_to_compartment = dict(zip(all_nodes['node_id'], all_nodes['compartment']))
 # %%
+
+connector_details['presyn_ad'] = connector_details['presynaptic_to_node'].apply(lambda x: node_to_compartment.get(x, 'NA'))
+connector_details.reset_index(drop=True, inplace=True)
+for i in range(len(connector_details)):
+    ps_nodes = connector_details['postsynaptic_to_node'].loc[i] 
+    ad_list = []
+    for p in ps_nodes: 
+        ad_list.append(node_to_compartment.get(p, 'NA'))
+    connector_details.at[i, 'postsyn_ad'] = ad_list
+
+
+# %%
