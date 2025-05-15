@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import navis
 
 from contools import Celltype, Celltype_Analyzer, Promat
 import pymaid
@@ -57,4 +58,44 @@ connector_details = connector_details.dropna(subset=['presynaptic_to'])
 
 print(f"After removing connectors without presynaptic site, {len(connector_details)} connectors remain")
 
+# %% get neurons and their axo-dendritic split 
+all_neus = pymaid.get_neuron(all_neurons)
+all_nodes = pymaid.get_node_table(all_neurons)
+
+# %% annotate nodes with axon/dendrite 
+#iterate through all neurons
+n_neus = len(all_neus)
+for e, nl in enumerate(all_neus):
+    #check if neuron has soma 
+    if nl.soma is None:
+        print(f"Neuron {nl.name} has no soma")
+        continue
+    #reroot at soma 
+    nl.reroot(nl.soma)
+    nl_split = navis.split_axon_dendrite(nl)
+    #print(f"Neuron {nl.name} has {len(nl_split)} compartments")
+    print(f"{e+1}/{n_neus}")
+    # get axon and dendrite nodes
+    for comp in nl_split:
+        c_name = comp.compartment 
+        c_nodes = comp.nodes 
+        c_node_ids = np.array(c_nodes['node_id'])
+        all_nodes.loc[all_nodes['node_id'].isin(c_node_ids),'compartment'] = c_name
+# %% handle neurons with no soma 
+soma_values = [neuron.soma for neuron in all_neus]
+none_count = soma_values.count(None)
+print(f"Number of neurons with no soma : {none_count}")
+
+#TODO: maybe add a way to handle neurons without soma? maybe via hand annotated axo/dendrite split?
+# for now just filtering them out :) 
+
+# %% save annotated nodes to csv 
+all_nodes.to_csv(path_for_data+'axo_den_labelled_nodes.csv', index=False)
+
+#%% load and create dict of nodes
+
+all_nodes = pd.read_csv(path_for_data+'axo_den_labelled_nodes.csv')
+#get only those nodes with compartment labels 
+all_nodes = all_nodes[all_nodes['compartment'].notna()]
+node_to_compartment = dict(zip(all_nodes['node_id'], all_nodes['compartment']))
 # %%
