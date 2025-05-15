@@ -231,7 +231,7 @@ G = graph_normalize_weights(G, factor='mean')
 
 # %% plot group graph  --- 
 graph_name = 'group_graph__.png'
-plot_nx_graph(G, plot_scale=6, save_fig=True, path=path_for_data+graph_name)
+plot_nx_graph(G, plot_scale=1, save_fig=True, path=path_for_data+graph_name)
 
 # %% plot group graph from perspective of one group 
 

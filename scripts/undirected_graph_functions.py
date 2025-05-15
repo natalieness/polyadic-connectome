@@ -128,7 +128,7 @@ def build_skid_graph(skid_pair_counts, all_skids):
 
 ### Functions to plot projected group graphs ###
 
-def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path=''):
+def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path='', title="Projected Group Interaction Graph", alpha=1, node_size=2000):
 
     #pos = nx.circular_layout(G.subgraph(G.nodes))
     pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
@@ -139,19 +139,19 @@ def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path=''):
         node_colors = ['lightblue' for _ in G.nodes()]
     else:
         node_colors = [node_colors.get(node, 'lightblue') for node in G.nodes()]
-
     #scale all weights by a factor for visualization
     edge_weights= [i*plot_scale for i in edge_weights]
+    plt.title(title)
     nx.draw(
         G, pos,
         with_labels=True,
         width=edge_weights,  # Line thickness ~ frequency
         node_color=node_colors,
-        node_size=2000,
+        node_size=node_size,
         font_size=10,
-        edge_color='black' 
+        edge_color='black', 
+        alpha=alpha
     )
-    plt.title("Projected Group Interaction Graph")
     if save_fig:
         plt.savefig(path)
 
