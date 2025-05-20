@@ -59,16 +59,16 @@ def get_group_pair_counts(hyperedges, vertex_to_group):
     group_pair_counts = defaultdict(int)
     for hedge in hyperedges:
         groups_in_edge = [vertex_to_group[v] for v in hedge]
-        unique_groups = set(groups_in_edge)
+        #unique_groups = set(groups_in_edge)
 
         # Count all unordered group pairs (with self-pairs)
-        for g1, g2 in combinations(sorted(unique_groups), 2):
+        for g1, g2 in combinations(sorted(groups_in_edge), 2):
             group_pair_counts[(g1, g2)] += 1
 
         # Optionally include self-pairs (e.g., A–A if multiple A members)
-        for g in unique_groups:
-            if groups_in_edge.count(g) > 1:
-                group_pair_counts[(g, g)] += 1
+        #for g in groups_in_edge:
+         #   if groups_in_edge.count(g) > 1:
+        #        group_pair_counts[(g, g)] += 1
     return group_pair_counts
 
 def build_group_graph(group_pair_counts, vertex_to_group):
@@ -148,7 +148,7 @@ def plot_nx_graph(G, node_colors=None, plot_scale=1, save_fig=False, path='', ti
         width=edge_weights,  # Line thickness ~ frequency
         node_color=node_colors,
         node_size=node_size,
-        font_size=10,
+        font_size=8,
         edge_color='black', 
         alpha=alpha
     )

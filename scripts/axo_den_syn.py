@@ -179,7 +179,7 @@ print(f'After filtering, average number of postsynaptic partners: {connector_det
 axo_syn_dets = connector_details[connector_details['presyn_ad'] == 'axon']
 den_syn_dets = connector_details[connector_details['presyn_ad'] == 'dendrite']
 # Set global font sizes
-mpl.rcParams['axes.titlesize'] = 20  # Title font size
+mpl.rcParams['axes.titlesize'] = 14  # Title font size
 mpl.rcParams['axes.labelsize'] = 16 # Axis label font size
 mpl.rcParams['xtick.labelsize'] = 14  # X-axis tick label font size
 mpl.rcParams['ytick.labelsize'] = 14 
@@ -203,7 +203,7 @@ for e, ax in enumerate(axes.flatten()):
 fig.tight_layout()
 
 
-fig, ax = plt.subplots(1, 1, figsize=(7, 6))
+fig, ax = plt.subplots(1, 1)
 # Normalize the histograms using `stat='density'`
 sns.histplot(data[0], binwidth=1, ax=ax, color='blue', kde=True, kde_kws={'bw_adjust': 4}, line_kws={'lw': 3}, stat='density')
 sns.histplot(data[1], binwidth=1, ax=ax, color='red', kde=True, kde_kws={'bw_adjust': 4}, line_kws={'lw': 3}, stat='density')
@@ -225,12 +225,24 @@ def get_postsynaptic_graph_for_any_group(hyperedges, vertex_to_group, name, node
     G = build_group_graph(group_pair_counts, vertex_to_group)
     G = graph_normalize_weights(G, factor='jaccard')
     print(f'{name} graph')
-    fig_save_path = os.path.join(path_for_data, f'nt_groups/{name}_graph_jaccard.png')
-    plot_nx_graph(G, plot_scale=4, save_fig=True, path=fig_save_path ,title=f'Postsynaptic partners of {name} synapses', node_colors=node_colors, node_size=1500, alpha=0.6)
+    fig_save_path = os.path.join(path_for_data, f'nt_groups/{name}_jaccard.png')
+    plot_nx_graph(G, plot_scale=6, save_fig=True, path=fig_save_path ,title=f'Postsynaptic partners of {name} synapses', node_colors=node_colors, node_size=800, alpha=0.8)
 
 get_postsynaptic_graph_for_any_group(axo_syn_dets['postsynaptic_to_node'], node_to_compartment, 'axonal ')
 plt.show()
 plt.figure()
 get_postsynaptic_graph_for_any_group(den_syn_dets['postsynaptic_to_node'], node_to_compartment, 'dendritic')
 plt.show()
+# %% sanity check of how many axons vs dendrites are targeted in general 
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+axo_syn_dets['postsyn_ad'].explode().value_counts().plot(kind='bar', color=['C0','C1','C2'], alpha=0.8, ax=axes[0], title='Axonal presynapses')
+den_syn_dets['postsyn_ad'].explode().value_counts().plot(kind='bar', color=['C0','C1','C2'], alpha=0.8, ax=axes[1], title='Dendritic presynapses')
+for ax in axes.flatten():
+    ax.set_xlabel('Postsynaptic compartment')
+    ax.set_ylabel('No. of synaptic connections')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+fig.tight_layout()
 # %%
