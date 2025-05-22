@@ -64,91 +64,74 @@ connector_details = connector_details.dropna(subset=['presynaptic_to'])
 print(f"After removing connectors without presynaptic site, {len(connector_details)} connectors remain")
 
 # %% get neurons and their axo-dendritic split 
+''' This takes a while - you can just skip and import the csv below'''
 all_neus = pymaid.get_neuron(all_neurons)
 all_nodes = pymaid.get_node_table(all_neurons)
 
-# %% annotate nodes with axon/dendrite 
-#iterate through all neurons
+#first use mw hand annotations to label axon/dendrite
+for e, nl in enumerate(all_neus):
+    mw_axon_split = nl.tags.get('mw axon split', None)
+    if mw_axon_split:
+        if len(mw_axon_split) >1:
+            print(f"Tag 'mw axon split' found with multiple values: {mw_axon_split}")
+            continue
+        else:
+            print(f"Tag 'mw axon split' found: {mw_axon_split}")
+            nl_axon = nl.prune_proximal_to('mw axon split', inplace=False)
+            nl_dend = nl.prune_distal_to('mw axon split', inplace=False)
+
+            #get axon and dendrite nodes 
+            axon_nodes = nl_axon.nodes.node_id
+            dendrite_nodes = nl_dend.nodes.node_id
+
+            all_nodes.loc[all_nodes['node_id'].isin(axon_nodes), 'compartment'] = 'axon'
+            all_nodes.loc[all_nodes['node_id'].isin(dendrite_nodes), 'compartment'] = 'dendrite'
+    else:
+        print("Tag 'mw axon split' not found")
+
+annotated_skels = all_nodes[all_nodes['compartment'].notna()]['skeleton_id'].unique()
+unannotated_skels = np.setdiff1d(all_neurons, annotated_skels)
+print(f"Number of unannotated skels after hand-annotation based split: {len(unannotated_skels)}")
+
+# run navis axon dendrite split on neurons that are not annotated 
 n_neus = len(all_neus)
 for e, nl in enumerate(all_neus):
-    #check if neuron has soma 
-    if nl.soma is None:
-        print(f"Neuron {nl.name} has no soma")
-        continue
-    #reroot at soma 
-    nl.reroot(nl.soma)
-    nl_split = navis.split_axon_dendrite(nl)
-    #print(f"Neuron {nl.name} has {len(nl_split)} compartments")
-    print(f"{e+1}/{n_neus}")
-    # get axon and dendrite nodes
-    for comp in nl_split:
-        c_name = comp.compartment 
-        c_nodes = comp.nodes 
-        c_node_ids = np.array(c_nodes['node_id'])
-        all_nodes.loc[all_nodes['node_id'].isin(c_node_ids),'compartment'] = c_name
-# %% handle neurons with no soma 
-soma_values = [neuron.soma for neuron in all_neus]
-none_count = soma_values.count(None)
-print(f"Number of neurons with no soma : {none_count}")
+    skel_id = int(nl.skeleton_id)
+    if skel_id in unannotated_skels:
+        print('Unannotated skeleton id found')
+        #check if neuron has soma 
+        if nl.soma is None:
+            print(f"Neuron {nl.name} has no soma")
+            continue
+        #reroot at soma 
+        nl.reroot(nl.soma)
+        nl_split = navis.split_axon_dendrite(nl)
+        #print(f"Neuron {nl.name} has {len(nl_split)} compartments")
+        print(f"{e+1}/{n_neus}")
+        # get axon and dendrite nodes
+        for comp in nl_split:
+            c_name = comp.compartment 
+            c_nodes = comp.nodes 
+            c_node_ids = np.array(c_nodes['node_id'])
+            all_nodes.loc[all_nodes['node_id'].isin(c_node_ids),'compartment'] = c_name
 
-#TODO: maybe add a way to handle neurons without soma? maybe via hand annotated axo/dendrite split?
-# for now just filtering them out :) 
+annotated_skels = all_nodes[all_nodes['compartment'].notna()]['skeleton_id'].unique().astype(int)
+unannotated_skels = np.setdiff1d(all_neurons, annotated_skels)
+print(f"Number of unannotated skels after navis split: {len(unannotated_skels)}")
 
-# %% save annotated nodes to csv 
-all_nodes.to_csv(path_for_data+'axo_den_labelled_nodes.csv', index=False)
+#  check neurons with no soma 
+#soma_values = [neuron.soma for neuron in all_neus]
+#none_count = soma_values.count(None)
+#print(f"Number of neurons with no soma : {none_count}")
+
+#%%  save annotated nodes to csv 
+all_nodes.to_csv(path_for_data+'axo_den_labelled_nodes_new.csv', index=False)
 
 #%% load and create dict of nodes
 
-all_nodes = pd.read_csv(path_for_data+'axo_den_labelled_nodes.csv')
+all_nodes = pd.read_csv(path_for_data+'axo_den_labelled_nodes_new.csv')
 
 
-#%% get all nodes without axo-dendritic split and try hand annotated 
-
-#get all skids without annotation 
-annotated_skels = all_nodes[all_nodes['compartment'].notna()]['skeleton_id'].unique()
-unannotated_skels = np.setdiff1d(all_neurons, annotated_skels)
-print(f"Number of unannotated skels: {len(unannotated_skels)}")
-
-
-for e, nl in enumerate(all_neus):
-    #check if neuron skeleton id is in unannotated skels
-    skel_id = int(nl.skeleton_id)
-    if skel_id in unannotated_skels:
-        
-        print('Unannotated skeleton id found')
-        mw_axon_split = nl.tags.get('mw axon split', None)
-        if mw_axon_split:
-            if len(mw_axon_split) >1:
-                print(f"Tag 'mw axon split' found with multiple values: {mw_axon_split}")
-                continue
-            else:
-                print(f"Tag 'mw axon split' found: {mw_axon_split}")
-                nl_axon = nl.prune_proximal_to('mw axon split', inplace=False)
-                nl_dend = nl.prune_distal_to('mw axon split', inplace=False)
-
-                #get axon and dendrite nodes 
-                axon_nodes = nl_axon.nodes.node_id
-                dendrite_nodes = nl_dend.nodes.node_id
-
-                all_nodes.loc[all_nodes['node_id'].isin(axon_nodes), 'compartment'] = 'axon'
-                all_nodes.loc[all_nodes['node_id'].isin(dendrite_nodes), 'compartment'] = 'dendrite'
-                
-
-        else:
-            print("Tag 'mw axon split' not found")
-
-annotated_skels = all_nodes[all_nodes['compartment'].notna()]['skeleton_id'].unique()
-unannotated_skels = np.setdiff1d(all_neurons, annotated_skels)
-print(f"Number of unannotated skels after hand annotations: {len(unannotated_skels)}")
-
-#%% 
-all_nodes.to_csv(path_for_data+'axo_den_labelled_nodes_withmixed_hand_anno.csv', index=False)
-
-
-#%%
-
-all_nodes = pd.read_csv(path_for_data+'axo_den_labelled_nodes_withmixed_hand_anno.csv')
-#get only those nodes with compartment labels 
 all_nodes = all_nodes[all_nodes['compartment'].notna()]
 node_to_compartment = dict(zip(all_nodes['node_id'], all_nodes['compartment']))
 # %%
@@ -223,10 +206,10 @@ fig.tight_layout()
 def get_postsynaptic_graph_for_any_group(hyperedges, vertex_to_group, name, node_colors=None):
     group_pair_counts = get_group_pair_counts(hyperedges, vertex_to_group)
     G = build_group_graph(group_pair_counts, vertex_to_group)
-    G = graph_normalize_weights(G, factor='jaccard')
+    G = graph_normalize_weights(G, factor='mean')
     print(f'{name} graph')
-    fig_save_path = os.path.join(path_for_data, f'nt_groups/{name}_jaccard.png')
-    plot_nx_graph(G, plot_scale=6, save_fig=True, path=fig_save_path ,title=f'Postsynaptic partners of {name} synapses', node_colors=node_colors, node_size=800, alpha=0.8)
+    fig_save_path = os.path.join(path_for_data, f'nt_groups/{name}_mean.png')
+    plot_nx_graph(G, plot_scale=3, save_fig=True, path=fig_save_path ,title=f'Postsynaptic partners of {name} synapses', node_colors=node_colors, node_size=800, alpha=0.8)
 
 get_postsynaptic_graph_for_any_group(axo_syn_dets['postsynaptic_to_node'], node_to_compartment, 'axonal ')
 plt.show()
@@ -245,4 +228,139 @@ for ax in axes.flatten():
     ax.spines['right'].set_visible(False)
 
 fig.tight_layout()
+# %% examine the actual makeup of hyperedges and potential flow across 
+
+axo_hyperedges = axo_syn_dets['postsynaptic_to_node']
+den_hyperedges = den_syn_dets['postsynaptic_to_node']
+
+
+#%% 
+
+def divide_connector_type_by_length(connectors_data):
+    he_comps = connectors_data['postsyn_ad']
+    he_comps_by_length = defaultdict(list)
+    # divide pattern by length 
+    for lens in range(100):
+        if any(len(he) == lens for he in he_comps):
+            he_comps_by_length[lens] = [he for he in he_comps if len(he) == lens]
+    return he_comps_by_length
+
+def get_pure_hyperedges(hyperedges, type_ad):
+    pure_ones = [he for he in hyperedges if ((len(set(he)) == 1) and (set(he).pop() == type_ad))]
+    n_pure_ones = len(pure_ones)
+    return n_pure_ones
+
+def get_hyperedge_ratio(hyperedges):
+    ratios = []
+    mixed_he = [he for he in hyperedges if len(set(he)) > 1]
+    if len(mixed_he) > 0:
+        for he in mixed_he:
+            axo_count = he.count('axon')
+            den_count = he.count('dendrite')
+            if den_count == 0:
+                print("Can't calculate ratio, no dendrites")
+            else:
+                ratios.append(axo_count / den_count)
+    if len(ratios) == 0:
+        print("No mixed hyperedges found")
+        return 0, 0, []
+    mean_ratio = np.mean(ratios)
+    return len(mixed_he), mean_ratio, ratios
+
+
+
+def get_partners_by_length_df(he_comps_by_length):
+    partners_df = pd.DataFrame(columns=['length', 'n_just_axo', 'n_just_den', 'n_mixed', 'mean_ratio'])
+    ratios_list = []
+    for lens in he_comps_by_length:
+        if len(he_comps_by_length[lens][0]) == 0:
+            continue
+        print(f"Length {lens}: {len(he_comps_by_length[lens])} axonal hyperedges")
+        #get average percentage of 'pure' hyperedges 
+        pure_axo = get_pure_hyperedges(he_comps_by_length[lens], 'axon')
+        pure_den = get_pure_hyperedges(he_comps_by_length[lens], 'dendrite')
+        print(f"Length {lens}: {pure_axo} just axonal partners, {pure_den} just dendritic partners")
+        #get number of hyperedges with linkers 
+        n_linker = len([he for he in he_comps_by_length[lens] if 'linker' in he])
+        print(f"Length {lens}: {n_linker} hyperedges with linkers excluded")
+        he_comps_by_length[lens] = [he for he in he_comps_by_length[lens] if 'linker' not in he]
+
+        n_mix, mean_ratio, ratios = get_hyperedge_ratio(he_comps_by_length[lens])
+        print(f"Length {lens}: {n_mix} mixed hyperedges, mean axo/den ratio: {mean_ratio:.2f}")
+        # Create a new row as a DataFrame
+        new_row = pd.DataFrame([{
+            'length': lens,
+            'n_just_axo': pure_axo,
+            'n_just_den': pure_den,
+            'n_mixed': n_mix,
+            'mean_ratio': mean_ratio
+        }])
+
+        # Concatenate to the existing DataFrame
+        partners_df = pd.concat([partners_df, new_row], ignore_index=True)
+        ratios_list.append(ratios)
+    
+    return partners_df,ratios_list
+
+def plot_partners_by_length(partners_df):
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    df_plot = partners_df.melt(id_vars='length', value_vars=['n_just_axo', 'n_just_den', 'n_mixed'], var_name='Type', value_name='Count')
+    sns.barplot(data=df_plot, x='length', y='Count', hue='Type', ax=ax, palette=['C0', 'C1', 'C2'], alpha=0.8)
+    ax.set_title('Number of axonal and dendritic postsynaptic partners by hyperedge length')
+    fig.tight_layout()
+
+def plot_mean_ratio(partners_df):
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    sns.barplot(data=partners_df, x='length', y='mean_ratio', ax=ax, color='gray')
+    ax.set_title('Mean axo/den ratio of mixed hyperedges')
+    fig.tight_layout()
+
+
+def get_overview_of_hyperedge_identities(connectors_data, name):
+    print('Name of group:', name)
+    he_comps_by_length = divide_connector_type_by_length(connectors_data)
+    partners_df, ratios_list = get_partners_by_length_df(he_comps_by_length)
+    plot_partners_by_length(partners_df)
+    plot_mean_ratio(partners_df)
+    return partners_df , ratios_list
+# divide by length
+axo_partners_df, axo_ratios_list = get_overview_of_hyperedge_identities(axo_syn_dets, 'Axonal postsynaptic partners')
+
+den_partners_df, den_ratios_list = get_overview_of_hyperedge_identities(den_syn_dets, 'Dendritic postsynaptic partners')
+#%%
+def ratios_list_to_df( ratios_list):
+    ratios_df = pd.DataFrame(ratios_list).transpose()
+    return ratios_df
+
+ratio_list_idx = []
+for i in range(1, len(axo_ratios_list)):
+    ratio_list_idx.append([i]*len(axo_ratios_list[i]))
+
+x= list(chain.from_iterable(ratio_list_idx))
+y= list(chain.from_iterable(axo_ratios_list))
+plt.scatter(x, y, alpha=0.5)
+
+#%% 
+axo_ratios_df = ratios_list_to_df(axo_ratios_list)
+
+sns.stripplot(data=axo_ratios_df, size=5, jitter=1.4)
+
+# %% what if we group hyperadges by neuron? 
+
+def get_random_neuron(neuron_list):
+    return np.random.choice(neuron_list)
+
+def get_all_segment_connectors(axo_syn_dets, skid_id):
+    axo_connectors = axo_syn_dets[(axo_syn_dets['presynaptic_to'] == skid_id) & (axo_syn_dets['presyn_ad'] == 'axon')]
+    return axo_connectors
+
+axo_neu = get_random_neuron(axo_syn_dets['presynaptic_to'])
+axo_connectors = get_all_segment_connectors(axo_syn_dets, axo_neu)
+
+random_axo_df, random_axo_ratios_list = get_overview_of_hyperedge_identities(axo_connectors, 'Postsynaptic partners of random axon')
+random_axo_ratios_df = ratios_list_to_df(random_axo_ratios_list)
+plt.figure()
+sns.stripplot(data=random_axo_ratios_df, size=5, jitter=True)
+
+
 # %%
