@@ -1,4 +1,4 @@
-
+#%%
 
 from itertools import chain
 from collections import Counter
@@ -227,7 +227,39 @@ adj_mbon, block_probs_mbon, mbon_celltype_in_adj = get_sbm_block_probs_from_hype
 
 
 
-# %% 
+# %% try force-direct graph 
+
+''' Network plot from the perspective of a specific pre-synaptic cell type
+edge weight: co-occurrence frequency of clustering coefficient
+node size: represent number of projections to that group ''' 
+
+presynaptic_group = 'dSEZs'
+group_hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == presynaptic_group]['postsynaptic_to'].tolist()
+postsyn_celltypes = labelled_connectors[labelled_connectors['presynaptic_celltype'] == presynaptic_group]['postsynaptic_celltype'].tolist()
+adj_group, block_probs_group, group_celltype_in_adj = get_sbm_block_probs_from_hyperedges(group_hyperedges, name=f'Postsynaptic to {presynaptic_group}', plot=True)
+
+postsyn_celltypes_flat = list(chain.from_iterable(postsyn_celltypes))
+postsyn_celltypes_counts = Counter(postsyn_celltypes_flat)
+
+G = nx.from_numpy_array(block_probs_group.values)
+G = nx.relabel_nodes(G, dict(zip(range(len(block_probs_group.index)), block_probs_group.index)))
+
+#plot graph 
+pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
+edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
 
 
-
+#scale all weights by a factor for visualization
+edge_weights= [i*1 for i in edge_weights]
+''' fix from here '''
+nx.draw(
+    G, pos,
+    with_labels=True,
+    width=edge_weights,  # Line thickness ~ frequency
+    node_color=node_colors,
+    node_size=node_size,
+    font_size=8,
+    edge_color='black', 
+    alpha=alpha
+    )
+# %%
