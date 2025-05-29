@@ -6,7 +6,7 @@ import contools
 import matplotlib.pyplot as plt
 import pymaid 
 import os
-from little_helper import inspect_data
+from scripts.functions.little_helper import inspect_data
 
 #get parent directory path
 current_file = __file__  # Replace with your file path if not in a script
