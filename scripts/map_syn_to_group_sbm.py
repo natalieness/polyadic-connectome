@@ -2,7 +2,6 @@
 
 from itertools import chain
 from collections import Counter
-from collections import defaultdict
 from itertools import combinations
 import os
 
@@ -12,18 +11,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib as mpl
+from matplotlib.patches import Arc, ConnectionPatch
+import matplotlib.transforms as mtransforms
 
-from contools import Celltype, Celltype_Analyzer, Promat
+from contools import Celltype_Analyzer
 from graspologic.utils import binarize
 from graspologic.models import SBMEstimator
 import pymaid
 from pymaid_creds import url, name, password, token
 
 # local imports
-from scripts.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
-from scripts.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix, get_skid_pair_counts, build_skid_graph
-from scripts.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph, plot_very_large_graph
-from scripts.undirected_postoccurency_matrix_functions import compute_relative_covariance, jaccard_similarity, precompute_P_marginal, compute_PMI
+from scripts.functions.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
+from scripts.functions.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix, get_skid_pair_counts, build_skid_graph
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
 
@@ -204,6 +203,15 @@ top_block_probs = get_top_block_probs(block_probs_all, n=20)
 
 
 # %% Repeat but filtering by presynaptic cell type
+''' fix this length issue of alignment of block probabilities with cell types '''
+prect_post_poly_df = pd.DataFrame()
+#get adj_matrix labels 
+adj_labels_flat = []
+for a in block_probs_all.index:
+    for b in block_probs_all.columns:
+        adj_labels_flat.append((a,b))
+prect_post_poly_df['adj_labels'] = adj_labels_flat
+
 
 for ct in celltype_df['name'].unique():
     print(f"Cell type: {ct}")
@@ -213,6 +221,18 @@ for ct in celltype_df['name'].unique():
     adj_ct, block_probs_ct, ps_celltype_in_adj_ct = get_sbm_block_probs_from_hyperedges(hyperedges, name=f'Postsynaptic to {ct}', plot=True)
     # get the top block probabilities
     top_block_probs_ct = get_top_block_probs(block_probs_ct, n=10)
+
+    #add to larger dataframe 
+    for e, a in enumerate(block_probs_ct.index):
+        for e2, b in enumerate(block_probs_ct.columns):
+            idx = np.where(prect_post_poly_df['adj_labels'] == (a, b))
+            print(idx)
+            prect_post_poly_df.at[idx[0][0], ct] = block_probs_ct.at[a, b]
+
+#replace NaN values with 0
+prect_post_poly_df = prect_post_poly_df.fillna(0)
+prect_post_poly_df = prect_post_poly_df.set_index('adj_labels')
+    #prect_post_poly_df[ct] = np.array(block_probs_ct.values).flatten()
     # save the block probabilities 
     #block_probs.to_csv(path_for_data + f'block_probs_{ct}.csv')
 # %% statistically comparing sbm estimators for different subgraphs (based on presynaptic cell type)
@@ -233,7 +253,7 @@ adj_mbon, block_probs_mbon, mbon_celltype_in_adj = get_sbm_block_probs_from_hype
 edge weight: co-occurrence frequency of clustering coefficient
 node size: represent number of projections to that group ''' 
 
-presynaptic_group = 'dSEZs'
+presynaptic_group = 'LHNs'
 group_hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == presynaptic_group]['postsynaptic_to'].tolist()
 postsyn_celltypes = labelled_connectors[labelled_connectors['presynaptic_celltype'] == presynaptic_group]['postsynaptic_celltype'].tolist()
 adj_group, block_probs_group, group_celltype_in_adj = get_sbm_block_probs_from_hyperedges(group_hyperedges, name=f'Postsynaptic to {presynaptic_group}', plot=True)
@@ -243,23 +263,123 @@ postsyn_celltypes_counts = Counter(postsyn_celltypes_flat)
 
 G = nx.from_numpy_array(block_probs_group.values)
 G = nx.relabel_nodes(G, dict(zip(range(len(block_probs_group.index)), block_probs_group.index)))
-
+#%%
 #plot graph 
 pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
 edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
 
+node_size = [postsyn_celltypes_counts[ct] * 2 for ct in G.nodes()]  # scale node size by number of projections to that group
+labels = {ct:f'{ct}\nn={postsyn_celltypes_counts[ct]}' for ct in G.nodes()}
 
 #scale all weights by a factor for visualization
-edge_weights= [i*1 for i in edge_weights]
+plot_scale = 50
+edge_weights= [i*plot_scale for i in edge_weights]
 ''' fix from here '''
 nx.draw(
     G, pos,
+    labels=labels,
     with_labels=True,
-    width=edge_weights,  # Line thickness ~ frequency
-    node_color=node_colors,
+    width=edge_weights,  
+    node_color='lightblue', 
     node_size=node_size,
     font_size=8,
     edge_color='black', 
-    alpha=alpha
+    alpha=0.9,
     )
+plt.title(f'Network of postsynaptic partners for {presynaptic_group}', fontsize=14)
+plt.savefig(path_for_data + f'network_{presynaptic_group}.png', dpi=300, bbox_inches='tight')
+# %% plot graph with offset for nodes 
+
+
+# Graph and layout
+pos = nx.nx_agraph.graphviz_layout(G, prog='neato')
+edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
+
+# Node sizes and labels
+node_size = [postsyn_celltypes_counts[ct] * 4 for ct in G.nodes()]
+labels = {ct: f'{ct}\nn={postsyn_celltypes_counts[ct]}' for ct in G.nodes()}
+
+# Scale edge weights for visualization
+plot_scale = 10
+edge_weights = [w * plot_scale for w in edge_weights]
+
+# Setup plot
+fig, ax = plt.subplots()
+nx.draw_networkx_nodes(G, pos, node_size=node_size, node_color='lightblue', ax=ax, alpha=0.9)
+nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
+
+# Convert node_size (points²) to radius in data coords
+def node_size_to_radius(node_size_list, ax):
+    # Convert each node size to radius in data coordinates
+    fig = ax.get_figure()
+    trans = ax.transData.transform
+    inv = ax.transData.inverted().transform
+    radii = []
+    for ns in node_size_list:
+        r_pts = np.sqrt(ns) / 2  # convert area to radius in points
+        # Convert from points to pixels
+        pixel_radius = fig.dpi_scale_trans.transform((r_pts, 0))[0]
+        # Convert from pixels to data coordinates
+        x0, y0 = inv((0, 0))
+        x1, y1 = inv((pixel_radius, 0))
+        data_radius = np.hypot(x1 - x0, y1 - y0)
+        radii.append(data_radius)
+    return dict(zip(G.nodes(), radii))
+
+node_radii = node_size_to_radius(node_size, ax)
+
+# Draw offset edges
+for (u, v), width in zip(G.edges(), edge_weights):
+    x1, y1 = pos[u]
+    x2, y2 = pos[v]
+    dx, dy = x2 - x1, y2 - y1
+    dist = np.hypot(dx, dy)
+    if dist == 0:
+        continue
+    offset_dx = dx / dist
+    offset_dy = dy / dist
+    ru = node_radii[u]
+    rv = node_radii[v]
+    start = (x1 + offset_dx * ru, y1 + offset_dy * ru)
+    end = (x2 - offset_dx * rv, y2 - offset_dy * rv)
+    line = ConnectionPatch(start, end, "data", "data", color='black', linewidth=width, alpha=0.9)
+    ax.add_patch(line)
+
+
+# Self-loop arc drawing using node_radii
+for node in G.nodes():
+    if G.has_edge(node, node):
+        x, y = pos[node]
+        r = node_radii[node]*3  # already calculated in your earlier code
+
+        # Loop appearance settings
+        loop_radius = r * 1.9           # how far the arc reaches from center
+        vertical_offset = r * 1.4       # how far above the node center to place the arc
+        arc_center = (x, y + vertical_offset)
+
+        # Angle from 320° to 270° (skipping 270–320)
+        arc = Arc(
+            arc_center,
+            width=2 * loop_radius,
+            height=2 * loop_radius,
+            angle=0,
+            theta1=320,
+            theta2=580,  # equivalent to 270°, wrapping around
+            color='black',
+            linewidth=G[node][node].get('weight', 1) * plot_scale,
+            alpha=0.9
+        )
+        ax.add_patch(arc)
+
+
+
+# Final plot settings
+#ax.set_aspect('equal')
+ax.margins(x=0.1, y=0.1)
+plt.axis('off')
+plt.tight_layout()
+plt.show()
+
+
+
 # %%

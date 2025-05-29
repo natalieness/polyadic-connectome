@@ -20,9 +20,9 @@ import pymaid
 from pymaid_creds import url, name, password, token
 
 # local imports
-from scripts.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list
-from scripts.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix
-from scripts.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph
+from scripts.functions.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list
+from scripts.functions.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix
+from scripts.functions.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
 
