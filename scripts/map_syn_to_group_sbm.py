@@ -177,10 +177,19 @@ def get_sbm_block_probs_from_hyperedges(hyperedges, name='', plot=True):
         sns.heatmap(block_probs, annot=False, fmt=".1f", cmap='Blues') 
         plt.title(f'Block probabilities for postsynaptic co-occurrence \n in polyadic synapses ({name})', fontsize=14)
         plt.show()
-    return adj_matrix_bi, block_probs, ps_celltype_in_adj
+    return adj_matrix_bi, block_probs, ps_celltype_in_adj, adj_matrix
     
 hyperedges = labelled_connectors['postsynaptic_to'].tolist()
-adj_all, block_probs_all, ps_celltype_in_adj_all = get_sbm_block_probs_from_hyperedges(hyperedges, name='all labelled neurons', plot=True)
+adj_all, block_probs_all, ps_celltype_in_adj_all, adj_all_nonbi = get_sbm_block_probs_from_hyperedges(hyperedges, name='all labelled neurons', plot=True)
+#%% save polyadic so adj matrices of all labelled neurons to csv for use in other scripts 
+
+adj_all_bi_df = pd.DataFrame(adj_all)
+adj_all_bi_df.to_csv(path_for_data + 'poly_adj/adj_all_bi.csv', index=False)
+adj_all_nonbi_df = pd.DataFrame(adj_all_nonbi)
+adj_all_nonbi_df.to_csv(path_for_data + 'poly_adj/adj_all_nonbi.csv', index=False)
+cell_group_labels = pd.DataFrame(ps_celltype_in_adj_all, columns=['celltype'])
+cell_group_labels.to_csv(path_for_data + 'poly_adj/cell_group_labels.csv', index=False)
+
 #%% get top block probabilities 
 
 def get_top_block_probs(block_probs, n=5, printing=True):
