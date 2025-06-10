@@ -37,11 +37,60 @@ path_for_data = parent_dir+'/data/'
 
 #%% get neuron ids based on neurotransmitter 
 
-gaba_ids = pymaid.get_skids_by_annotation('mw GABAergic')
-glut_ids = pymaid.get_skids_by_annotation('mw glutamatergic')
-chol_ids = pymaid.get_skids_by_annotation('mw cholinergic')
-dop_ids = pymaid.get_skids_by_annotation('mw dopaminergic')
-oct_ids = pymaid.get_skids_by_annotation('mw octopaminergic')
+#choose how to get the skids - note both can be used together
+use_predictions = True #if True, use predictions, if False, use annotations
+use_both = True
+
+confidence_threshold = 0.5
+
+if use_both:
+    print('Using both predictions and annotations for neurotransmitter skids')
+    # get skids for each neurotransmitter from annotations
+    nt_preds = pd.read_csv('input_data/all_brain-presynapses-neuron_preds_20250610.csv')
+    #filter by confidence threshold
+    nt_preds = nt_preds[nt_preds['neuron_confidence'] > confidence_threshold]
+
+    # get skids for each neurotransmitter 
+    gaba_ids = nt_preds[nt_preds['neuron_label'] == 'GABA']['skeleton_id'].unique()
+    glut_ids = nt_preds[nt_preds['neuron_label'] == 'Glutamate']['skeleton_id'].unique()
+    chol_ids = nt_preds[nt_preds['neuron_label'] == 'Acetylcholine']['skeleton_id'].unique()
+    dop_ids = nt_preds[nt_preds['neuron_label'] == 'Dopamine']['skeleton_id'].unique()
+    oct_ids = nt_preds[nt_preds['neuron_label'] == 'Octopamine']['skeleton_id'].unique()
+
+    catmaid_gaba_ids = pymaid.get_skids_by_annotation('mw GABAergic')
+    catmaid_glut_ids = pymaid.get_skids_by_annotation('mw glutamatergic')
+    catmaid_chol_ids = pymaid.get_skids_by_annotation('mw cholinergic')
+    catmaid_dop_ids = pymaid.get_skids_by_annotation('mw dopaminergic')
+    catmaid_oct_ids = pymaid.get_skids_by_annotation('mw octopaminergic')
+    # combine the skids from predictions and annotations
+    gaba_ids = np.unique(np.concatenate((gaba_ids, catmaid_gaba_ids)))
+    glut_ids = np.unique(np.concatenate((glut_ids, catmaid_glut_ids)))
+    chol_ids = np.unique(np.concatenate((chol_ids, catmaid_chol_ids)))
+    dop_ids = np.unique(np.concatenate((dop_ids, catmaid_dop_ids)))
+    oct_ids = np.unique(np.concatenate((oct_ids, catmaid_oct_ids)))
+
+
+elif (use_predictions== True) and (use_both == False):
+    print('Using predictions for neurotransmitter skids')
+    nt_preds = pd.read_csv('input_data/all_brain-presynapses-neuron_preds_20250610.csv')
+    #filter by confidence threshold
+    nt_preds = nt_preds[nt_preds['neuron_confidence'] > confidence_threshold]
+
+    # get skids for each neurotransmitter 
+    gaba_ids = nt_preds[nt_preds['neuron_label'] == 'GABA']['skeleton_id'].unique()
+    glut_ids = nt_preds[nt_preds['neuron_label'] == 'Glutamate']['skeleton_id'].unique()
+    chol_ids = nt_preds[nt_preds['neuron_label'] == 'Acetylcholine']['skeleton_id'].unique()
+    dop_ids = nt_preds[nt_preds['neuron_label'] == 'Dopamine']['skeleton_id'].unique()
+    oct_ids = nt_preds[nt_preds['neuron_label'] == 'Octopamine']['skeleton_id'].unique()
+
+else:
+    print('Using catmaid annotations for neurotransmitter skids')
+    gaba_ids = pymaid.get_skids_by_annotation('mw GABAergic')
+    glut_ids = pymaid.get_skids_by_annotation('mw glutamatergic')
+    chol_ids = pymaid.get_skids_by_annotation('mw cholinergic')
+    dop_ids = pymaid.get_skids_by_annotation('mw dopaminergic')
+    oct_ids = pymaid.get_skids_by_annotation('mw octopaminergic')
+
 
 print(f'GABAergic: {len(gaba_ids)}')
 print(f'Glutamatergic: {len(glut_ids)}')
@@ -120,6 +169,32 @@ def plot_nt_n_of_postsynaptic_partners(data, names):
     fig.tight_layout()
     return fig
 fig = plot_nt_n_of_postsynaptic_partners(data, names)
+
+def plot_nt_n_of_postsynaptic_partners_kde(data, names):
+    fig, ax = plt.subplots(figsize=(5, 5))
+    colors = ['C0', 'C1', 'C2', 'C3', 'C4']
+    for i, (d, name) in enumerate(zip(data, names)):
+        sns.kdeplot(
+            d, 
+            ax=ax, 
+            label=f"{name} (mean: {np.mean(d):.2f})", 
+            color=colors[i], 
+            bw_adjust=3, 
+            fill=False,
+            alpha=0.8, 
+            common_norm=False
+        )
+    
+    ax.set_xlabel('Number of postsynaptic partners')
+    ax.set_ylabel('Density')
+    ax.set_title('Distribution of postsynaptic partners per neurotransmitter')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper right')
+    fig.tight_layout()
+    return fig
+
+fig = plot_nt_n_of_postsynaptic_partners_kde(data, names)
 # %% examine group differences in number of postsynaptic partners
 
 #test for normality
@@ -151,6 +226,12 @@ mpl.rcParams.update({
     'ytick.labelsize': 14,
     'legend.fontsize': 12,
 })
+
+# Get unique group names and their positions
+group_names = data_df['Group'].unique()
+group_names = sorted(group_names, key=lambda x: data_df[data_df['Group'] == x]['Data'].max(), reverse=True)
+group_pos = {name: i for i, name in enumerate(group_names)}
+
 fig, ax = plt.subplots(figsize=(10, 8), nrows=1, ncols=1)
 colors = ['C2', 'C0', 'C1', 'C3', 'C4']
 sns.boxplot(data=data_df, x='Group', y='Data', ax=ax, palette=colors,  order=list(group_pos.keys()))
@@ -163,10 +244,7 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 ax.set_xlabel('')
 ax.set_ylabel('Number of postsynaptic partners')
-# Get unique group names and their positions
-group_names = data_df['Group'].unique()
-group_names = sorted(group_names, key=lambda x: data_df[data_df['Group'] == x]['Data'].max(), reverse=True)
-group_pos = {name: i for i, name in enumerate(group_names)}
+
 
 
 # Set y-offset for asterisks
@@ -175,7 +253,10 @@ y_offset = y_max * 0.05
 
 hfont = {'fontname':'Arial'}
 n_s = {name: 0 for name in group_names}
-n_s['GABAergic'] = 1  # Initialize the counter for GABAergic group
+if use_predictions == False:
+    n_s['GABAergic'] = 1  # Initialize the counter for GABAergic group
+if use_both:
+    n_s['Glutamatergic'] = 1
 for (g1, g2) in combinations(group_names[:], 2):
     pval = dunn_results.loc[g1, g2] if g1 in dunn_results.index and g2 in dunn_results.columns else dunn_results.loc[g2, g1]
     # Choose number of asterisks based on p-value
