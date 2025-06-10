@@ -137,4 +137,14 @@ print(f'Sum: poly_adj: {np.sum(poly_adj)}, r_poly_adj: {np.sum(r_poly_adj)}')
 stats_chi, pvals_uncorrected, group_order = compare_two_sample_chi_squared(poly_adj, ct_labels, r_poly_adj, ct_labels)
 reject, pvals_corrected, asidak, acbonf = correct_pvals(pvals_uncorrected, method='holm')
 
+# %% print results
+#set float format for better readability
+pd.options.display.float_format = '{:.3f}'.format
+
+# Print the DataFrame
+print(pd.DataFrame(pvals_corrected))
+
+# reset formatting
+pd.reset_option('display.float_format')
+
 # %%

@@ -153,3 +153,5 @@ ax.set_ylabel('Presynaptic Celltype')
 plt.figure()
 sns.clustermap(arr, annot=True, fmt=".0f", cmap='magma', xticklabels=ct_names, yticklabels=ct_names)
 
+
+# %%

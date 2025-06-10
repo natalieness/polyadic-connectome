@@ -227,7 +227,7 @@ for ct in celltype_df['name'].unique():
     # get the hyperedges for the current cell type
     hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == ct]['postsynaptic_to'].tolist()
     # get the block probabilities
-    adj_ct, block_probs_ct, ps_celltype_in_adj_ct = get_sbm_block_probs_from_hyperedges(hyperedges, name=f'Postsynaptic to {ct}', plot=True)
+    adj_ct, block_probs_ct, ps_celltype_in_adj_ct, adj_ct_nonbi = get_sbm_block_probs_from_hyperedges(hyperedges, name=f'Postsynaptic to {ct}', plot=True)
     # get the top block probabilities
     top_block_probs_ct = get_top_block_probs(block_probs_ct, n=10)
 
@@ -248,10 +248,10 @@ prect_post_poly_df = prect_post_poly_df.set_index('adj_labels')
 
 #example: kenyon cells and mushroom body output neurons
 kc_hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == 'KCs']['postsynaptic_to'].tolist()
-adj_kc, block_probs_kc, kc_celltype_in_adj = get_sbm_block_probs_from_hyperedges(kc_hyperedges, name='KCs presynaptic', plot=True)
+adj_kc, block_probs_kc, kc_celltype_in_adj, kc_adj_nonbi = get_sbm_block_probs_from_hyperedges(kc_hyperedges, name='KCs presynaptic', plot=True)
 
 mbon_hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == 'MBONs']['postsynaptic_to'].tolist()
-adj_mbon, block_probs_mbon, mbon_celltype_in_adj = get_sbm_block_probs_from_hyperedges(mbon_hyperedges, name='MBONs presynaptic', plot=True)
+adj_mbon, block_probs_mbon, mbon_celltype_in_adj, mbon_adj_nonbi = get_sbm_block_probs_from_hyperedges(mbon_hyperedges, name='MBONs presynaptic', plot=True)
 
 
 

@@ -23,6 +23,7 @@ from scripts.functions.little_helper import inspect_data, get_celltype_dict, get
 from scripts.functions.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix, get_skid_pair_counts, build_skid_graph
 from scripts.functions.undirected_graph_functions import get_group_pair_counts, build_group_graph, graph_normalize_weights, plot_nx_graph, centered_subgraph, plot_very_large_graph
 from scripts.functions.undirected_postoccurency_matrix_functions import compute_relative_covariance, jaccard_similarity, precompute_P_marginal, compute_PMI
+from scripts.functions.synapse_quality_checks import count_postsyn_mutiples_of_neurons
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
 
@@ -70,6 +71,13 @@ print(f"Of {len(all_connectors)} connectors in links, {len(connector_details)} h
 connector_details = connector_details.dropna(subset=['presynaptic_to'])
 
 print(f"After removing connectors without presynaptic site, {len(connector_details)} connectors remain")
+
+#%% sort through connectors to spot potential issues: 
+
+multi_locs = count_postsyn_mutiples_of_neurons(connector_details, mode='neuron')
+multi_locs_node = count_postsyn_mutiples_of_neurons(connector_details, mode='node')
+
+# check for same postsynaptic node co-occuring multiple times
 
 # %% # map skid ids in connector details to celltypes
 

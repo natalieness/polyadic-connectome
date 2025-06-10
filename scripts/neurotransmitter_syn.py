@@ -13,6 +13,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import stats
+from scikit_posthocs import posthoc_dunn
+import matplotlib as mpl
 
 from contools import Celltype, Celltype_Analyzer, Promat
 import pymaid
@@ -117,6 +120,86 @@ def plot_nt_n_of_postsynaptic_partners(data, names):
     fig.tight_layout()
     return fig
 fig = plot_nt_n_of_postsynaptic_partners(data, names)
+# %% examine group differences in number of postsynaptic partners
+
+#test for normality
+for e, d in enumerate(data):
+    stat1, pval1 = stats.shapiro(d)
+    stats2, pval2 = stats.normaltest(d)
+    if pval1 < 0.05:
+        print(f'{names[e]}: Data is not normally distributed (shapiro-wilk test)')
+    if pval2 < 0.05:
+        print(f'{names[e]}: Data is not normally distributed (D\'Agostino and Pearson\'s test)')
+
+# run Kruskal-Wallis test for differences in number of postsynaptic partners
+
+stat_kw, pval_kw = stats.kruskal(gaba_n_post, glut_n_post, chol_n_post, dop_n_post, oct_n_post)
+print(f'Kruskal-Wallis test: H-statistic: {stat_kw:.2f}, p-value: {pval_kw}')
+
+data_df = pd.DataFrame()
+data_df['Data'] = np.array(list(chain.from_iterable(data)))
+data_df['Group'] = np.array([names[0]] * len(data[0]) + [names[1]]* len(data[1]) + [names[2]] * len(data[2]) + [names[3]] * len(data[3]) + [names[4]] * len(data[4]))
+
+dunn_results = posthoc_dunn(data_df, val_col='Data', group_col='Group', p_adjust='bonferroni')
+dunn_results.style.format("{:.4f}")
+
+# %%
+mpl.rcParams.update({
+    'axes.titlesize': 16,
+    'axes.labelsize': 16,
+    'xtick.labelsize': 14,
+    'ytick.labelsize': 14,
+    'legend.fontsize': 12,
+})
+fig, ax = plt.subplots(figsize=(10, 8), nrows=1, ncols=1)
+colors = ['C2', 'C0', 'C1', 'C3', 'C4']
+sns.boxplot(data=data_df, x='Group', y='Data', ax=ax, palette=colors,  order=list(group_pos.keys()))
+
+# Set alpha for boxes
+for patch in ax.artists:
+    patch.set_alpha(0.7)
+
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.set_xlabel('')
+ax.set_ylabel('Number of postsynaptic partners')
+# Get unique group names and their positions
+group_names = data_df['Group'].unique()
+group_names = sorted(group_names, key=lambda x: data_df[data_df['Group'] == x]['Data'].max(), reverse=True)
+group_pos = {name: i for i, name in enumerate(group_names)}
+
+
+# Set y-offset for asterisks
+y_max = data_df['Data'].max()
+y_offset = y_max * 0.05
+
+hfont = {'fontname':'Arial'}
+n_s = {name: 0 for name in group_names}
+n_s['GABAergic'] = 1  # Initialize the counter for GABAergic group
+for (g1, g2) in combinations(group_names[:], 2):
+    pval = dunn_results.loc[g1, g2] if g1 in dunn_results.index and g2 in dunn_results.columns else dunn_results.loc[g2, g1]
+    # Choose number of asterisks based on p-value
+    if pval < 0.0001:
+        stars = '****'
+    elif pval < 0.01:
+        stars = '**'
+    elif pval < 0.05:
+        stars = '*'
+    else:
+        stars = 'ns'
+    x1, x2 = group_pos[g1], group_pos[g2]
+    # Find the max y-value for each group
+    y1 = data_df.loc[data_df['Group'] == g1, 'Data'].max()
+    y2 = data_df.loc[data_df['Group'] == g2, 'Data'].max()
+    y = max(y1, y2) + y_offset + (3 * n_s[g1])# place annotation just above the higher box
+    n_s[g1] += 1
+    # Draw the annotation line
+    ax.plot([x1, x1, x2, x2], [y, y + y_offset/2, y + y_offset/2, y], lw=1.0, c='k')
+    # Place the asterisks
+    if stars != 'ns':
+        ax.text((x1 + x2) / 2, y + y_offset/2, stars, ha='center', va='bottom', color='k', fontsize=22, fontstyle='italic', fontweight='bold')
+    else:
+        ax.text((x1 + x2) / 2, y + y_offset/2, stars, ha='center', va='bottom', color='k', fontsize=16 )
 
 
 # %% look at distribution of postsynaptic partners per neurotransmitter 
@@ -219,5 +302,13 @@ nt_colors = {'GABA': '#49a2e0', 'Glut': '#ffb97b', 'Chol': '#81dc81', 'Dop': '#e
 for d_skid, nam in zip(data_skids, names):
     plt.figure()
     get_postsynaptic_graph_for_nt_group(d_skid, nt_ids, nam, node_colors=nt_colors)
+
+# %% find the largest connectors to sort out 
+
+chol_df = pd.DataFrame()
+chol_df['connector_id'] = chol_syn_dets['connector_id']
+chol_df['n partners'] = chol_n_post
+
+chol_df.sort_values(by='n partners', ascending=False, inplace=True)
 
 # %%
