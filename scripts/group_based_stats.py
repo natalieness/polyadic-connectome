@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from statsmodels.stats.multitest import multipletests
 from scipy import stats
+import matplotlib as mpl
 
 ### Getting alternative network for comparison of polyadic connections 
 ### try configuration model first 
@@ -83,8 +84,24 @@ def compare_two_sample_chi_squared(poly_adj1, ct_labels1, poly_adj2, ct_labels2)
             chi2, p_val, _, _ = stats.chi2_contingency(cont_table)
             stats_chi[e, f + e] = chi2
             pvals_uncorrected[e, f + e] = p_val
-    
-    return stats_chi, pvals_uncorrected, group_order
+
+    #also get fold change between models 
+    fold_change = np.zeros((len(group_order), len(group_order)), dtype=float)
+    fold_change[:] = np.nan
+    for e, g1 in enumerate(group_order):
+        for f, g2 in enumerate(group_order[e:]):
+            n_obs1 = group_counts1[e, f + e]
+            n_obs2 = group_counts2[e, f + e]
+            #using log2(n_obs1 / n_obs2) to get fold change 
+            pseudocount = 1 #e-6  # to avoid division by zero
+            fold_change[e, f+e] = np.log2((n_obs1 + pseudocount) / (n_obs2 + pseudocount))
+
+            #if n_obs1 + n_obs2 == 0:
+                #fold_change[e, f + e] = 1 #np.nan
+            #else:
+                #fold_change[e, f + e] = n_obs1 / n_obs2 if n_obs2 > 0 else n_obs1 #think this makes sense, but could be better way?
+    # this doesnt make sense because a negative change will just result in 0 
+    return stats_chi, pvals_uncorrected, group_order, fold_change, group_counts1, group_counts2
 
 
 def get_random_poly_adj(poly_adj, rng):
@@ -134,17 +151,27 @@ print(f'Shape: poly_adj: {poly_adj.shape}, r_poly_adj: {r_poly_adj.shape}')
 print(f'Sum: poly_adj: {np.sum(poly_adj)}, r_poly_adj: {np.sum(r_poly_adj)}')
 
 # %% compare group-based statistics
-stats_chi, pvals_uncorrected, group_order = compare_two_sample_chi_squared(poly_adj, ct_labels, r_poly_adj, ct_labels)
+stats_chi, pvals_uncorrected, group_order, fold_change, g_count1, g_count2 = compare_two_sample_chi_squared(poly_adj, ct_labels, r_poly_adj, ct_labels)
 reject, pvals_corrected, asidak, acbonf = correct_pvals(pvals_uncorrected, method='holm')
 
-# %% print results
-#set float format for better readability
-pd.options.display.float_format = '{:.3f}'.format
 
-# Print the DataFrame
-print(pd.DataFrame(pvals_corrected))
+# %%
+cmap_sig = (mpl.colors.ListedColormap(['gray', 'darkgray', 'lightgray']).with_extremes(over='white', under='black'))
+bounds = [0.0001, 0.001, 0.01, 0.05]
+norm = mpl.colors.BoundaryNorm(bounds, cmap_sig.N)
 
-# reset formatting
-pd.reset_option('display.float_format')
+fig, ax = plt.subplots()
+img = ax.imshow(pvals_corrected, cmap=cmap_sig, norm=norm)
+ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
+ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
+ax.set_title('Corrected p-values for comparison to degree-matched config model')
+fig.colorbar(img, ax=ax, orientation='vertical', label='Corrected p-value', extend='both')
 
+# %%
+fig, ax = plt.subplots()
+img = ax.imshow(fold_change, cmap='coolwarm')
+ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
+ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
+ax.set_title('log2 Fold change between polyadic connections and config model')
+fig.colorbar(img, ax=ax, orientation='vertical', label='Fold change')
 # %%
