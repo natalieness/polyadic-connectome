@@ -168,10 +168,25 @@ ax.set_title('Corrected p-values for comparison to degree-matched config model')
 fig.colorbar(img, ax=ax, orientation='vertical', label='Corrected p-value', extend='both')
 
 # %%
+# to center colormap on 0 
+fc_max = np.nanmax(np.abs(fold_change))
+
 fig, ax = plt.subplots()
-img = ax.imshow(fold_change, cmap='coolwarm')
+img = ax.imshow(fold_change, cmap='coolwarm', vmin=-fc_max, vmax=fc_max)
 ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
 ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
 ax.set_title('log2 Fold change between polyadic connections and config model')
 fig.colorbar(img, ax=ax, orientation='vertical', label='Fold change')
+# %% simple threshold of fold change only for significant p-values 
+
+significant_mask = pvals_corrected < 0.05
+fold_change_sig = np.where(significant_mask, fold_change, np.nan)
+
+fig, ax = plt.subplots()
+img = ax.imshow(fold_change_sig, cmap='coolwarm', vmin=-fc_max, vmax=fc_max )
+ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
+ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
+ax.set_title('log2 Fold change between polyadic connections and config model \n for significant p-values only')
+fig.colorbar(img, ax=ax, orientation='vertical', label='Fold change')
+
 # %%
