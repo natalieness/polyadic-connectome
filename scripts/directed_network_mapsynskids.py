@@ -129,6 +129,105 @@ sns.heatmap(arr, annot=True, fmt=".0f", cmap='magma', cbar=True, xticklabels=ct_
 ax.set_xlabel('Postsynaptic Celltype')
 ax.set_ylabel('Presynaptic Celltype')
 
+
+#%% generate directed graph of presynaptic to postsynaptic connections
+
+def plot_directed_graph(arr, ct_names, celltype_df, norm='pre'):
+
+    # Create directed graph
+    G = nx.DiGraph()
+    
+    # Add nodes for presynaptic and postsynaptic celltypes
+    for ct in ct_names:
+        G.add_node(ct, type='celltype', color=celltype_df[celltype_df['name'] == ct]['color'].values[0])
+    
+    # Add edges for presynaptic to postsynaptic connections
+    for i in range(arr.shape[0]):
+        for j in range(arr.shape[1]):
+            if arr[i, j] > 0:
+                presyn_ct = ct_names[i]
+                postsyn_ct = ct_names[j]
+                G.add_edge(presyn_ct, postsyn_ct, weight=arr[i, j])
+    
+    edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
+
+    if norm == 'pre':
+        # Normalize edge weights by presynaptic celltype
+        for ct in ct_names:
+            presyn_edges = [G[u][v]['weight'] for u, v in G.out_edges(ct)]
+            if presyn_edges:
+                norm_factor = sum(presyn_edges)
+                for u, v in G.out_edges(ct):
+                    G[u][v]['weight'] /= norm_factor if norm_factor != 0 else 1
+    
+    # Scale all weights by a factor for visualization
+    plot_scale = 0.0006
+    edges_scaled = [i * plot_scale for i in edge_weights]
+    
+    # remove nodes 
+    #nodes_to_remove = ['CNs', 'pre-dVNCs', 'dVNCs', 'RGNs', 'LNs', 'dSEZs', 'pre-dSEZs', 'ascendings', 'LHNs', 'CNs']
+    #G.remove_nodes_from(nodes_to_remove)
+
+    # Plot directed graph
+    pos = nx.spring_layout(G, seed=42)  # positions for all nodes
+    nx.draw(G, pos, with_labels=True, width=edges_scaled,
+            node_color=[G.nodes[n]['color'] for n in G.nodes],
+            node_size=1000, font_size=10, font_color='black', arrows=True)
+    return G
+    
+G = plot_directed_graph(arr, ct_names, celltype_df)
+
+#%% 
+
+def get_in_and_Out_weights_for_neuronct(G, neuron='LHNs'):
+    in_weights = [(u, G[u][v]['weight']) for u, v in G.in_edges(neuron)]
+    out_weights = [(v, G[u][v]['weight']) for u, v in G.out_edges(neuron)]
+    in_weights = sorted(in_weights, key=lambda x: x[1], reverse=True)
+    out_weights = sorted(out_weights, key=lambda x: x[1], reverse=True)
+    return in_weights, out_weights
+
+def plot_in_out(in_weights, out_weights, neuron='LHNs'):
+    GN = nx.DiGraph()
+    # Add the neuron node
+    GN.add_node(neuron, type='celltype', color='lightblue')
+    # Add incoming edges
+    for u, weight in in_weights:
+        GN.add_edge(u, neuron, weight=weight)
+    # Add outgoing edges
+    for v, weight in out_weights:
+        GN.add_edge(neuron, v, weight=weight)
+    plot_scale = 30
+    edge_weights = [GN[u][v]['weight'] * plot_scale for u, v in GN.edges()]
+    # Plot the graph
+    pos = nx.circular_layout(GN)  # positions for all nodes
+    #nx.draw(GN, pos, with_labels=True, width=edge_weights,
+     #       node_color=[GN.nodes[n].get('color', 'lightblue') for n in GN.nodes],
+      #      node_size=1000, font_size=10, font_color='black', arrows=True)
+    
+    # Draw nodes and labels
+    nx.draw_networkx_nodes(GN, pos, node_size=700, node_color='lightblue')
+    nx.draw_networkx_labels(GN, pos, font_size=10)
+
+    incoming_edges = [u  for u, _ in in_weights]
+    outgoing_edges = [u for u, _ in out_weights]
+    # Draw edges with curvature for both directions
+    connection_style = ['arc3, rad=0.2' for _ in incoming_edges] + ['arc3, rad=-0.2' for _ in outgoing_edges]
+    edges = [(u, neuron) for u in incoming_edges] + [(neuron, u) for u in outgoing_edges]
+    edge_weights = [w for _, w in in_weights] + [w for _, w in out_weights]
+    plot_scale = 20
+    edge_weights = [w * plot_scale for w in edge_weights]
+
+    nx.draw_networkx_edges(GN, pos, edgelist=edges, width=edge_weights,
+                       connectionstyle=connection_style, arrowstyle='-|>', arrowsize=20)
+    
+    plt.title(f"Incoming and outgoing connections from {neuron}")
+    return GN
+
+    
+
+LHNs_in, LHNs_out = get_in_and_Out_weights_for_neuronct(G, neuron='LHNs')
+GN = plot_in_out(LHNs_in, [], neuron='LHNs')
+    
 #%% compute relative to total presynaptic connections per cell type 
 
 def compute_relative(arr):
@@ -154,4 +253,3 @@ plt.figure()
 sns.clustermap(arr, annot=True, fmt=".0f", cmap='magma', xticklabels=ct_names, yticklabels=ct_names)
 
 
-# %%

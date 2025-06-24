@@ -126,8 +126,47 @@ def correct_pvals(pvals_uncorrected, method='holm'):
     reject = reject.reshape(pvals_shape)
     return reject, pvals_corrected, asidak, acbonf
             
+### Plotting functions ###
+def get_pval_cbar():
+    cmap_sig = (mpl.colors.ListedColormap(['gray', 'darkgray', 'lightgray']).with_extremes(over='white', under='black'))
+    bounds = [0.0001, 0.001, 0.01, 0.05]
+    norm = mpl.colors.BoundaryNorm(bounds, cmap_sig.N)
+    return cmap_sig, norm
 
+def plot_pvals_heatmap(pvals_corrected, group_order, title='Corrected p-values for comparison to degree-matched config model'):
+    cmap_sig, norm = get_pval_cbar()
+    fig, ax = plt.subplots()
+    img = ax.imshow(pvals_corrected, cmap=cmap_sig, norm=norm)
+    ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
+    ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
+    ax.set_title(title)
+    fig.colorbar(img, ax=ax, orientation='vertical', label='Corrected p-value', extend='both')
 
+def plot_fold_change_heatmap(fold_change, group_order):
+    """Plot a heatmap of fold change values."""
+    # Center colormap on 0
+
+    fc_max = np.nanmax(np.abs(fold_change))
+
+    fig, ax = plt.subplots()
+    img = ax.imshow(fold_change, cmap='coolwarm', vmin=-fc_max, vmax=fc_max)
+    ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
+    ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
+    ax.set_title('log2 Fold change between polyadic connections and config model')
+    fig.colorbar(img, ax=ax, orientation='vertical', label='Fold change')
+
+def plot_significant_fold_change_heatmap(fold_change, pvals_corrected, group_order):
+    """Plot a heatmap of fold change values for significant p-values."""
+    significant_mask = pvals_corrected < 0.05
+    fold_change_sig = np.where(significant_mask, fold_change, np.nan)
+    # Center colormap on 0
+    fc_max = np.nanmax(np.abs(fold_change))
+    fig, ax = plt.subplots()
+    img = ax.imshow(fold_change_sig, cmap='coolwarm', vmin=-fc_max, vmax=fc_max )
+    ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
+    ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
+    ax.set_title('log2 fold change between polyadic connections and config model \n for significant changes only')
+    fig.colorbar(img, ax=ax, orientation='vertical', label='Log2 fold change')
 
 #%% Temporary to test the code
 
@@ -136,9 +175,16 @@ def correct_pvals(pvals_uncorrected, method='holm'):
 Functions only really make sense for this case, 
 otherwise the counts of n_possible don't make sense below'''
 
-poly_adj = pd.read_csv('data/poly_adj/adj_all_bi.csv').values
+poly_adj = pd.read_csv('data/poly_adj/adj_all_nonbi.csv').values
 ct_labels = pd.read_csv('data/poly_adj/cell_group_labels.csv').values.reshape(-1)
 
+# rather than using the binarised adjacency matrix, binarize here, so that we can use synaptic threshold if desired 
+def binarize_poly_adj(poly_adj, syn_threshold=0):
+    ''' Binarize the polyadic adjacency matrix based on a synaptic threshold '''
+    binarized_adj = np.where(poly_adj > syn_threshold, 1, 0)
+    return binarized_adj
+
+poly_adj = binarize_poly_adj(poly_adj, syn_threshold=0)
 
 #%% generate random polyadic adjacency matrix to compare
 seed = 40
@@ -150,43 +196,49 @@ r_poly_adj = get_random_poly_adj(poly_adj, rng)
 print(f'Shape: poly_adj: {poly_adj.shape}, r_poly_adj: {r_poly_adj.shape}')
 print(f'Sum: poly_adj: {np.sum(poly_adj)}, r_poly_adj: {np.sum(r_poly_adj)}')
 
-# %% compare group-based statistics
+#  compare group-based statistics
 stats_chi, pvals_uncorrected, group_order, fold_change, g_count1, g_count2 = compare_two_sample_chi_squared(poly_adj, ct_labels, r_poly_adj, ct_labels)
 reject, pvals_corrected, asidak, acbonf = correct_pvals(pvals_uncorrected, method='holm')
 
 
-# %%
-cmap_sig = (mpl.colors.ListedColormap(['gray', 'darkgray', 'lightgray']).with_extremes(over='white', under='black'))
-bounds = [0.0001, 0.001, 0.01, 0.05]
-norm = mpl.colors.BoundaryNorm(bounds, cmap_sig.N)
+plot_pvals_heatmap(pvals_corrected, group_order)
 
-fig, ax = plt.subplots()
-img = ax.imshow(pvals_corrected, cmap=cmap_sig, norm=norm)
-ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
-ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
-ax.set_title('Corrected p-values for comparison to degree-matched config model')
-fig.colorbar(img, ax=ax, orientation='vertical', label='Corrected p-value', extend='both')
+plot_fold_change_heatmap(fold_change, group_order)
 
-# %%
-# to center colormap on 0 
-fc_max = np.nanmax(np.abs(fold_change))
+plot_significant_fold_change_heatmap(fold_change, pvals_corrected, group_order)
 
-fig, ax = plt.subplots()
-img = ax.imshow(fold_change, cmap='coolwarm', vmin=-fc_max, vmax=fc_max)
-ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
-ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
-ax.set_title('log2 Fold change between polyadic connections and config model')
-fig.colorbar(img, ax=ax, orientation='vertical', label='Fold change')
-# %% simple threshold of fold change only for significant p-values 
 
-significant_mask = pvals_corrected < 0.05
-fold_change_sig = np.where(significant_mask, fold_change, np.nan)
+#%% from perspective of specific cell types 
+def get_group_stats_from_bi_adj(celltype):
+    ct_adj = pd.read_csv(f'data/poly_adj/adj_{celltype}_nonbi.csv').values
+    ct_labels = pd.read_csv(f'data/poly_adj/{celltype}_group_labels.csv').values.reshape(-1)
 
-fig, ax = plt.subplots()
-img = ax.imshow(fold_change_sig, cmap='coolwarm', vmin=-fc_max, vmax=fc_max )
-ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
-ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
-ax.set_title('log2 Fold change between polyadic connections and config model \n for significant p-values only')
-fig.colorbar(img, ax=ax, orientation='vertical', label='Fold change')
+    #binarise
+    ct_adj = binarize_poly_adj(ct_adj, syn_threshold=0)
 
-# %%
+    ''' this adj matrix is not even - which violates the adj because each edge needs to be connected to two nodes 
+    This is because of the binarization that's needed for the current methodology, so will need to introduce a random edge to make it even
+    Not ideal so need to think about this more'''
+    #check if the adjacency matrix is even
+    if np.sum(ct_adj) % 2 != 0:
+        print(f'Adjacency matrix for {celltype} is not even, adding a self-loop to make it even')
+        ct_adj[0,0] += 1  # add a self-loop to make it even
+
+    r_ct_adj = get_random_poly_adj(ct_adj, rng)
+    if np.sum(r_ct_adj) % 2 != 0:
+        #remove self loop
+        ct_adj[0,0] -= 1  # remove the self-loop to restore original adjacency matrix
+
+    stats_chi_ct, pvals_uncorrected_ct, group_order_ct, fold_change_ct, g_count1_ct, g_count2_ct = compare_two_sample_chi_squared(ct_adj, ct_labels, r_ct_adj, ct_labels)
+    reject_ct, pvals_corrected_ct, asidak_ct, acbonf_ct = correct_pvals(pvals_uncorrected_ct, method='holm')
+
+    plot_pvals_heatmap(pvals_corrected_ct, group_order_ct, title=f'Corrected p-values for comparison to degree-matched config model ({celltype})')
+    plot_fold_change_heatmap(fold_change_ct, group_order_ct)
+    plot_significant_fold_change_heatmap(fold_change_ct, pvals_corrected_ct, group_order_ct)
+
+
+get_group_stats_from_bi_adj('KCs')
+#
+#  %%
+
+

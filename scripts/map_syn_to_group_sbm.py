@@ -23,8 +23,11 @@ from pymaid_creds import url, name, password, token
 # local imports
 from scripts.functions.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
 from scripts.functions.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix, get_skid_pair_counts, build_skid_graph
+from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
+
+rng = np.random.default_rng(42)  # Set a random seed for reproducibility
 
 #get parent directory path
 current_file = __file__  
@@ -71,6 +74,10 @@ connector_details = connector_details.dropna(subset=['presynaptic_to'])
 
 print(f"After removing connectors without presynaptic site, {len(connector_details)} connectors remain")
 
+# get random permuatted polyadic synaptic connections model (including all connectors)
+
+rand_connectors_all = polyadic_edge_permutation(connector_details, rng)
+
 # %% # map skid ids in connector details to celltypes
 
 connector_details['presynaptic_celltype'] = connector_details['presynaptic_to'].apply(lambda x: get_celltype_name(x, skid_to_celltype=skid_to_celltype))
@@ -84,6 +91,24 @@ labelled_connectors = connector_details_presyn_labelled[~connector_details_presy
 #remove connectors with no labelled postsynaptic celltypes
 labelled_connectors = labelled_connectors[labelled_connectors['postsynaptic_celltype'].apply(lambda x: len(x) > 0)]
 print(f"Number of connectors with only labelled presynaptic and postsynaptic celltypes: {len(labelled_connectors)}")
+
+# repeat polyadic edege permuattion on filtered network - just to see the difference 
+rand_connectors_labelled = polyadic_edge_permutation(labelled_connectors, rng)
+
+#%% for the purpose of methods used right now, will also filter rand_connectors_all
+#to only include labelled presynaptic and postsynaptic celltypes
+
+#map to cell types
+rand_connectors_all['presynaptic_celltype'] = rand_connectors_all['presynaptic_to'].apply(lambda x: get_celltype_name(x, skid_to_celltype=skid_to_celltype))
+celltype_col_for_list(rand_connectors_all, 'postsynaptic_to', skid_to_celltype=skid_to_celltype, new_col_name='postsynaptic_celltype')
+
+#filter 
+rand_connectors_all_presyn_labelled = rand_connectors_all[rand_connectors_all['presynaptic_celltype'] != 'NA']
+labelled_rand_connectors_all = rand_connectors_all_presyn_labelled[~rand_connectors_all_presyn_labelled['postsynaptic_celltype'].apply(lambda x: 'NA' in x)]
+#remove connectors with no labelled postsynaptic celltypes
+labelled_rand_connectors_all = labelled_rand_connectors_all[labelled_rand_connectors_all['postsynaptic_celltype'].apply(lambda x: len(x) > 0)]
+print(f"Number of random connectors with only labelled presynaptic and postsynaptic celltypes: {len(labelled_rand_connectors_all)}")
+
 # %% get general description of labelled connectors dataset
 
 n_presynaptic = labelled_connectors['presynaptic_to'].nunique()
@@ -179,8 +204,22 @@ def get_sbm_block_probs_from_hyperedges(hyperedges, name='', plot=True):
         plt.show()
     return adj_matrix_bi, block_probs, ps_celltype_in_adj, adj_matrix
     
+def plot_block_probs_diff(block_probs1, block_probs2, name1='', name2=''):
+    diff = block_probs1 - block_probs2
+    sns.heatmap(diff, annot=False, fmt=".1f", cmap='PiYG', center=0)
+    plt.title(f'Block probabilities difference \n({name1} - {name2})', fontsize=14)
+    plt.show()
+
+
 hyperedges = labelled_connectors['postsynaptic_to'].tolist()
 adj_all, block_probs_all, ps_celltype_in_adj_all, adj_all_nonbi = get_sbm_block_probs_from_hyperedges(hyperedges, name='all labelled neurons', plot=True)
+
+r1_adj_all, r1_block_probs_all, r1_ps_celltype_in_adj_all, r1_adj_all_nonbi = get_sbm_block_probs_from_hyperedges(labelled_rand_connectors_all['postsynaptic_to'].tolist(), name='Rand permutation (pre-label filter) neurons', plot=True)
+r2_adj_all, r2_block_probs_all, r2_ps_celltype_in_adj_all, r2_adj_all_nonbi = get_sbm_block_probs_from_hyperedges(rand_connectors_labelled['postsynaptic_to'].tolist(), name='Rand permutation (post-label filter) neurons', plot=True)
+
+plot_block_probs_diff(block_probs_all, r1_block_probs_all, name1='Real', name2='Rand (pre-label filter)')
+plot_block_probs_diff(block_probs_all, r2_block_probs_all, name1='Real', name2='Rand (post-label filter)')
+
 #%% save polyadic so adj matrices of all labelled neurons to csv for use in other scripts 
 
 adj_all_bi_df = pd.DataFrame(adj_all)
@@ -246,13 +285,24 @@ prect_post_poly_df = prect_post_poly_df.set_index('adj_labels')
     #block_probs.to_csv(path_for_data + f'block_probs_{ct}.csv')
 # %% statistically comparing sbm estimators for different subgraphs (based on presynaptic cell type)
 
-#example: kenyon cells and mushroom body output neurons
-kc_hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == 'KCs']['postsynaptic_to'].tolist()
-adj_kc, block_probs_kc, kc_celltype_in_adj, kc_adj_nonbi = get_sbm_block_probs_from_hyperedges(kc_hyperedges, name='KCs presynaptic', plot=True)
 
-mbon_hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == 'MBONs']['postsynaptic_to'].tolist()
-adj_mbon, block_probs_mbon, mbon_celltype_in_adj, mbon_adj_nonbi = get_sbm_block_probs_from_hyperedges(mbon_hyperedges, name='MBONs presynaptic', plot=True)
+def get_and_save_specific_adj(celltype, labelled_connectors, path_for_data):
+    """
+    Get the adjacency matrix for a specific presynaptic cell type and save it to a CSV file.
+    """
+    hyperedges = labelled_connectors[labelled_connectors['presynaptic_celltype'] == celltype]['postsynaptic_to'].tolist()
+    adj_matrix, block_probs, ps_celltype_in_adj, adj_matrix_nonbi = get_sbm_block_probs_from_hyperedges(hyperedges, name=f'Postsynaptic to {celltype}', plot=True)
+    
+    # save the adjacency matrix and block probabilities
+    adj_matrix_df = pd.DataFrame(adj_matrix)
+    adj_matrix_df.to_csv(path_for_data + f'poly_adj/adj_{celltype}_bi.csv', index=False)
+    adj_matrix_nonbi_df = pd.DataFrame(adj_matrix_nonbi)
+    adj_matrix_nonbi_df.to_csv(path_for_data + f'poly_adj/adj_{celltype}_nonbi.csv', index=False)
+    
+    group_labels_df = pd.DataFrame(ps_celltype_in_adj, columns=['celltype'])
+    group_labels_df.to_csv(path_for_data + f'poly_adj/{celltype}_group_labels.csv', index=False)
 
+get_and_save_specific_adj('LHNs', labelled_connectors, path_for_data)
 
 
 

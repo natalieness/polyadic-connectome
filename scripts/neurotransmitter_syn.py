@@ -368,21 +368,6 @@ def get_nt_ps_n(data_ps):
 
 data_n = get_nt_ps_n(data_ps)
 fig = plot_nt_n_of_postsynaptic_partners(data_n, names)
-# %%
-
-def get_postsynaptic_graph_for_nt_group(hyperedges, vertex_to_group, name, node_colors=None):
-    group_pair_counts = get_group_pair_counts(hyperedges, vertex_to_group)
-    G = build_group_graph(group_pair_counts, vertex_to_group)
-    G = graph_normalize_weights(G, factor='mean')
-    print(f'{name} graph')
-    fig_save_path = os.path.join(path_for_data, f'nt_groups/{name}_mean.png')
-    plot_nx_graph(G, plot_scale=2, save_fig=True, path=fig_save_path ,title=f'Postsynaptic partners of {name} synapses', node_colors=node_colors, node_size=1000)
-
-data_skids = [gaba_ps_skids_f, glut_ps_skids_f, chol_ps_skids_f, dop_ps_skids_f, oct_ps_skids_f]
-nt_colors = {'GABA': '#49a2e0', 'Glut': '#ffb97b', 'Chol': '#81dc81', 'Dop': '#e98787', 'Oct': '#b99cd4'}
-for d_skid, nam in zip(data_skids, names):
-    plt.figure()
-    get_postsynaptic_graph_for_nt_group(d_skid, nt_ids, nam, node_colors=nt_colors)
 
 # %% find the largest connectors to sort out 
 
@@ -393,3 +378,5 @@ chol_df['n partners'] = chol_n_post
 chol_df.sort_values(by='n partners', ascending=False, inplace=True)
 
 # %%
+
+
