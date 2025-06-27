@@ -4,7 +4,6 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from statsmodels.stats.multitest import multipletests
 from scipy import stats
 import matplotlib as mpl
@@ -13,9 +12,6 @@ import matplotlib as mpl
 ### try configuration model first 
 ### self loops will depende on the number on whether taken into account in statistical comparison
 
-
-
-# %%
 
 def get_group_counts_from_poly_adj(poly_adj, ct_labels, group_order):
     '''Note this only makes sense for binarised adjacency matrix'''
@@ -121,9 +117,20 @@ def get_random_poly_adj(poly_adj, rng):
 def correct_pvals(pvals_uncorrected, method='holm'):
     pvals_shape = pvals_uncorrected.shape
     pvals_flat = pvals_uncorrected.flatten()
-    reject, pvals_corrected, asidak, acbonf = multipletests(pvals_flat, method=method, alpha=0.05, is_sorted=False, returnsorted=False)
-    pvals_corrected = pvals_corrected.reshape(pvals_shape)
-    reject = reject.reshape(pvals_shape)
+    #not all are meaningful comparisons, and all duplicated, so only correct real pvalues 
+    real_pvals = np.where(pvals_flat < 1.0)
+    real_pvals_flat = pvals_flat[real_pvals]
+
+    reject, pvals_corrected, asidak, acbonf = multipletests(real_pvals_flat, method=method, alpha=0.05, is_sorted=False, returnsorted=False)
+
+    # reshape to original shape 
+    pvals_flat[real_pvals] = pvals_corrected
+    pvals_corrected = pvals_flat.reshape(pvals_shape)
+
+    # shape reject into useful shape 
+    reject_shaped = np.ones_like(pvals_flat, dtype=bool)
+    reject_shaped[real_pvals] = reject
+    reject = reject_shaped.reshape(pvals_shape)
     return reject, pvals_corrected, asidak, acbonf
             
 ### Plotting functions ###
@@ -133,7 +140,7 @@ def get_pval_cbar():
     norm = mpl.colors.BoundaryNorm(bounds, cmap_sig.N)
     return cmap_sig, norm
 
-def plot_pvals_heatmap(pvals_corrected, group_order, title='Corrected p-values for comparison to degree-matched config model'):
+def plot_pvals_heatmap(pvals_corrected, group_order, title='Corrected p-values for comparison to random model'):
     cmap_sig, norm = get_pval_cbar()
     fig, ax = plt.subplots()
     img = ax.imshow(pvals_corrected, cmap=cmap_sig, norm=norm)
@@ -152,7 +159,7 @@ def plot_fold_change_heatmap(fold_change, group_order):
     img = ax.imshow(fold_change, cmap='coolwarm', vmin=-fc_max, vmax=fc_max)
     ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
     ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
-    ax.set_title('log2 Fold change between polyadic connections and config model')
+    ax.set_title('log2 Fold change between polyadic connections and random model')
     fig.colorbar(img, ax=ax, orientation='vertical', label='Fold change')
 
 def plot_significant_fold_change_heatmap(fold_change, pvals_corrected, group_order):
@@ -165,50 +172,14 @@ def plot_significant_fold_change_heatmap(fold_change, pvals_corrected, group_ord
     img = ax.imshow(fold_change_sig, cmap='coolwarm', vmin=-fc_max, vmax=fc_max )
     ax.set_xticks(ticks=np.arange(len(group_order)), labels=group_order, rotation=90)
     ax.set_yticks(ticks=np.arange(len(group_order)), labels=group_order)
-    ax.set_title('log2 fold change between polyadic connections and config model \n for significant changes only')
+    ax.set_title('log2 fold change between polyadic connections and random model \n for significant changes only')
     fig.colorbar(img, ax=ax, orientation='vertical', label='Log2 fold change')
 
-#%% Temporary to test the code
-
-''' Note: using binarised adjacency matrix for polyadic connections
-
-Functions only really make sense for this case, 
-otherwise the counts of n_possible don't make sense below'''
-
-poly_adj = pd.read_csv('data/poly_adj/adj_all_nonbi.csv').values
-ct_labels = pd.read_csv('data/poly_adj/cell_group_labels.csv').values.reshape(-1)
-
-# rather than using the binarised adjacency matrix, binarize here, so that we can use synaptic threshold if desired 
 def binarize_poly_adj(poly_adj, syn_threshold=0):
     ''' Binarize the polyadic adjacency matrix based on a synaptic threshold '''
     binarized_adj = np.where(poly_adj > syn_threshold, 1, 0)
     return binarized_adj
 
-poly_adj = binarize_poly_adj(poly_adj, syn_threshold=0)
-
-#%% generate random polyadic adjacency matrix to compare
-seed = 40
-#generate numpy random instance
-rng = np.random.default_rng(seed=seed)
-r_poly_adj = get_random_poly_adj(poly_adj, rng)
-
-# compare briefly 
-print(f'Shape: poly_adj: {poly_adj.shape}, r_poly_adj: {r_poly_adj.shape}')
-print(f'Sum: poly_adj: {np.sum(poly_adj)}, r_poly_adj: {np.sum(r_poly_adj)}')
-
-#  compare group-based statistics
-stats_chi, pvals_uncorrected, group_order, fold_change, g_count1, g_count2 = compare_two_sample_chi_squared(poly_adj, ct_labels, r_poly_adj, ct_labels)
-reject, pvals_corrected, asidak, acbonf = correct_pvals(pvals_uncorrected, method='holm')
-
-
-plot_pvals_heatmap(pvals_corrected, group_order)
-
-plot_fold_change_heatmap(fold_change, group_order)
-
-plot_significant_fold_change_heatmap(fold_change, pvals_corrected, group_order)
-
-
-#%% from perspective of specific cell types 
 def get_group_stats_from_bi_adj(celltype):
     ct_adj = pd.read_csv(f'data/poly_adj/adj_{celltype}_nonbi.csv').values
     ct_labels = pd.read_csv(f'data/poly_adj/{celltype}_group_labels.csv').values.reshape(-1)
@@ -237,8 +208,5 @@ def get_group_stats_from_bi_adj(celltype):
     plot_significant_fold_change_heatmap(fold_change_ct, pvals_corrected_ct, group_order_ct)
 
 
-get_group_stats_from_bi_adj('KCs')
-#
-#  %%
 
 

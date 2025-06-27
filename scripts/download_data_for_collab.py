@@ -46,6 +46,40 @@ neuron_df['skeleton_id'] = neuron_df['skeleton_id'].apply(lambda x: int(x))
 
 neuron_df['celltype'] = neuron_df['skeleton_id'].map(skid_to_celltype)
 
+#%% polyadic celltypes 
+
+links = pymaid.get_connector_links(all_neurons, chunk_size=50)
+all_connectors = links['connector_id'].unique()
+connector_details = pymaid.get_connector_details(all_connectors)
+
+connector_details = connector_details.iloc[:,:3]
+
+#%% 
+connector_details.columns = ['connector_id', 'presynaptic_id', 'postsynaptic_id']
+connector_details.to_csv('data/for_collab/polyadic_connectors.csv', index=False)
+
+
+
+#%%
+neuron_nt_preds = pd.read_csv('input_data/all_brain-presynapses-neuron_preds_20250610.csv')
+#remove low predictions 
+#neuron_nt_preds = neuron_nt_preds[neuron_nt_preds['neuron_confidence'] > 0.5]
+#%% make neuron overview 
+
+neuron_df = neuron_df.merge(
+    neuron_nt_preds[['skeleton_id', 'neuron_label', 'neuron_confidence']],
+    on='skeleton_id',
+    how='left'
+)
+# rename columns
+neuron_df = neuron_df.rename(columns={
+    'neuron_label': 'predicted_neurotransmitter',
+    'neuron_confidence': 'neurotransmitter_confidence'
+})
+
+#%%
+neuron_df.to_csv('data/for_collab/neuron_details_with_nt.csv', index=False)
+
 #%% get neurotransmitter data from catmaid
 nt_neus = pymaid.get_annotated('mw predicted NT')
 

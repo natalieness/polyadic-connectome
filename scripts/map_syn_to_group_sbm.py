@@ -22,7 +22,7 @@ from pymaid_creds import url, name, password, token
 
 # local imports
 from scripts.functions.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
-from scripts.functions.undirected_graph_functions import construct_polyadic_incidence_matrix, construct_group_projection_matrix, get_skid_pair_counts, build_skid_graph
+from scripts.functions.undirected_graph_functions import get_postsynaptic_co_adj
 from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
@@ -124,32 +124,8 @@ for ct in celltype_df['name'].unique():
     n_postsynaptic_celltype = counts[ct]
     print(f"Number of {ct} presynaptic sites: {n_presynaptic_celltype}, postsynaptic sites: {n_postsynaptic_celltype}")
 
-# %%
 
-#construct undirected adjacency matrix of co-occuring post-synaptic partners (independent of presynaptic partners)
 
-def get_postsynaptic_co_adj(hyperedges):
-    """
-    Get the adjacency matrix of co-occuring postsynaptic partners from a list of hyperedges.
-    """
-    # get all unique postsynaptic partners
-    all_postsynaptic = set(chain.from_iterable(hyperedges))
-    # create a mapping from postsynaptic partner to index
-    post_to_index = {post: i for i, post in enumerate(all_postsynaptic)}
-    # create an empty adjacency matrix
-    adj_matrix = np.zeros((len(all_postsynaptic), len(all_postsynaptic)))
-    
-    # iterate over hyperedges and fill in the adjacency matrix
-    for hyperedge in hyperedges:
-        indices = [post_to_index[post] for post in hyperedge]
-        for i, j in combinations(indices, 2):
-            adj_matrix[i, j] += 1
-            adj_matrix[j, i] += 1
-    
-    #get ordered list of postsynaptic partner names 
-    ordered_postsynaptic = [post for post, _ in sorted(post_to_index.items(), key=lambda item: item[1])]
-
-    return adj_matrix, ordered_postsynaptic
 #%% get SBM block probabilities for all labelled neurons
 
 hyperedges = labelled_connectors['postsynaptic_to'].tolist()

@@ -222,3 +222,28 @@ def centered_subgraph(G, center_node, norm='group_participation', plot_scale=20,
     if save_fig:
         plt.savefig(path)
     return H
+
+
+#construct undirected adjacency matrix of co-occuring post-synaptic partners (independent of presynaptic partners)
+def get_postsynaptic_co_adj(hyperedges):
+    """
+    Get the adjacency matrix of co-occuring postsynaptic partners from a list of hyperedges.
+    """
+    # get all unique postsynaptic partners
+    all_postsynaptic = set(chain.from_iterable(hyperedges))
+    # create a mapping from postsynaptic partner to index
+    post_to_index = {post: i for i, post in enumerate(all_postsynaptic)}
+    # create an empty adjacency matrix
+    adj_matrix = np.zeros((len(all_postsynaptic), len(all_postsynaptic)))
+    
+    # iterate over hyperedges and fill in the adjacency matrix
+    for hyperedge in hyperedges:
+        indices = [post_to_index[post] for post in hyperedge]
+        for i, j in combinations(indices, 2):
+            adj_matrix[i, j] += 1
+            adj_matrix[j, i] += 1
+    
+    #get ordered list of postsynaptic partner names 
+    ordered_postsynaptic = [post for post, _ in sorted(post_to_index.items(), key=lambda item: item[1])]
+
+    return adj_matrix, ordered_postsynaptic
