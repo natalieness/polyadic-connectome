@@ -10,6 +10,8 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from graspologic.utils import binarize
+from graspologic.models import SBMEstimator
 
 
 ### Functions to construct a 2-level hypergraph to represent polyadic synaptic groups ###
@@ -247,3 +249,54 @@ def get_postsynaptic_co_adj(hyperedges):
     ordered_postsynaptic = [post for post, _ in sorted(post_to_index.items(), key=lambda item: item[1])]
 
     return adj_matrix, ordered_postsynaptic
+
+def map_co_adj_to_dict(adj_matrix, ordered_ps_in_adj, skid_dict, filter_adj=True):
+     # get the cell types for each postsynaptic partner
+    ps_type_in_adj = [skid_dict.get(post, 'NA') for post in ordered_ps_in_adj]
+
+    if filter_adj:
+        # remove 'NA' entried before fitting
+        na_cells = np.where(np.array(ps_type_in_adj) == 'NA')[0]
+        adj_matrix = np.delete(adj_matrix, na_cells, axis=0)
+        adj_matrix = np.delete(adj_matrix, na_cells, axis=1)
+        ps_type_in_adj = np.delete(ps_type_in_adj, na_cells)
+
+    return adj_matrix, ps_type_in_adj
+
+
+def get_sbm_block_probs_from_hyperedges(hyperedges, skid_to_celltype,name='', plot=True):
+    """
+    Get the block probabilities for a given set of hyperedges.
+    """
+    # get the adjacency matrix
+    adj_matrix, ordered_ps_in_adj = get_postsynaptic_co_adj(hyperedges)
+    
+    # binarize the adjacency matrix
+    adj_matrix_bi = binarize(adj_matrix)
+    if plot:
+        cmap = mpl.colors.ListedColormap(['white', 'black'])
+        plt.imshow(adj_matrix_bi, cmap=cmap)
+        plt.axis('off')
+        plt.title(f'Adjacency matrix of polyadic partners\n({name})')
+        plt.show()
+    
+    # get the cell types for each postsynaptic partner
+    ps_celltype_in_adj = [skid_to_celltype.get(post, 'NA') for post in ordered_ps_in_adj]
+
+    # remove 'NA' entried before fitting
+    na_cells = np.where(np.array(ps_celltype_in_adj) == 'NA')[0]
+    adj_matrix = np.delete(adj_matrix, na_cells, axis=0)
+    adj_matrix = np.delete(adj_matrix, na_cells, axis=1)
+    adj_matrix_bi = np.delete(adj_matrix_bi, na_cells, axis=0)
+    adj_matrix_bi = np.delete(adj_matrix_bi, na_cells, axis=1)
+    ps_celltype_in_adj = np.delete(ps_celltype_in_adj, na_cells)
+    
+    # fit the SBM model
+    estimator = SBMEstimator(directed=False, loops=True)
+    estimator.fit(adj_matrix_bi, y=ps_celltype_in_adj)
+    block_probs = pd.DataFrame(estimator.block_p_, index=np.unique(ps_celltype_in_adj), columns=np.unique(ps_celltype_in_adj))
+    if plot:
+        sns.heatmap(block_probs, annot=False, fmt=".1f", cmap='Blues') 
+        plt.title(f'Block probabilities for postsynaptic co-occurrence \n in polyadic synapses ({name})', fontsize=14)
+        plt.show()
+    return adj_matrix_bi, block_probs, ps_celltype_in_adj, adj_matrix

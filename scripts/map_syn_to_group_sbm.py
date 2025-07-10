@@ -22,7 +22,7 @@ from pymaid_creds import url, name, password, token
 
 # local imports
 from scripts.functions.little_helper import inspect_data, get_celltype_dict, get_celltype_name, celltype_col_for_list, get_ct_index
-from scripts.functions.undirected_graph_functions import get_postsynaptic_co_adj
+from scripts.functions.undirected_graph_functions import get_postsynaptic_co_adj, get_sbm_block_probs_from_hyperedges
 from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
@@ -151,34 +151,7 @@ sns.heatmap(block_probs, annot=False, fmt=".1f",cmap='Blues')
 plt.title('Block probabilities for postsynaptic \nco-occurrence in polyadic synapses', fontsize=14)
 
 # %% 
-def get_sbm_block_probs_from_hyperedges(hyperedges, name='', plot=True):
-    """
-    Get the block probabilities for a given set of hyperedges.
-    """
-    # get the adjacency matrix
-    adj_matrix, ordered_ps_in_adj = get_postsynaptic_co_adj(hyperedges)
-    
-    # binarize the adjacency matrix
-    adj_matrix_bi = binarize(adj_matrix)
-    if plot:
-        cmap = mpl.colors.ListedColormap(['white', 'black'])
-        plt.imshow(adj_matrix_bi, cmap=cmap)
-        plt.axis('off')
-        plt.title(f'Adjacency matrix of polyadic partners\n({name})')
-        plt.show()
-    
-    # get the cell types for each postsynaptic partner
-    ps_celltype_in_adj = [skid_to_celltype[post] for post in ordered_ps_in_adj]
-    
-    # fit the SBM model
-    estimator = SBMEstimator(directed=False, loops=True)
-    estimator.fit(adj_matrix_bi, y=ps_celltype_in_adj)
-    block_probs = pd.DataFrame(estimator.block_p_, index=np.unique(ps_celltype_in_adj), columns=np.unique(ps_celltype_in_adj))
-    if plot:
-        sns.heatmap(block_probs, annot=False, fmt=".1f", cmap='Blues') 
-        plt.title(f'Block probabilities for postsynaptic co-occurrence \n in polyadic synapses ({name})', fontsize=14)
-        plt.show()
-    return adj_matrix_bi, block_probs, ps_celltype_in_adj, adj_matrix
+
     
 def plot_block_probs_diff(block_probs1, block_probs2, name1='', name2=''):
     diff = block_probs1 - block_probs2
