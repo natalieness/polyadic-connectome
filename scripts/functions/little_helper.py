@@ -43,7 +43,8 @@ def get_ct_index(ct_name, ct_names):
 ### Mapping skids to cell types in specific structures ###
 
 def celltype_col_for_list(connector_df, col_name, skid_to_celltype, new_col_name='postsynaptic_celltype'):
-    df_series = connector_df[col_name]
+    df_series = connector_df[col_name] 
+
     new_df_series = []
     for l in df_series:
         #each element is a list of skids 
@@ -51,4 +52,19 @@ def celltype_col_for_list(connector_df, col_name, skid_to_celltype, new_col_name
         for skid in l:
             new_l.append(get_celltype_name(skid, skid_to_celltype))
         new_df_series.append(new_l)
+    connector_df[new_col_name] = new_df_series.to_list()
+
+def celltype_col_for_nestedlist(connector_df, col_name, skid_to_celltype, new_col_name='postsynaptic_celltype'):
+    df_series = connector_df[col_name].values[0] # changed this for pairs_dict, if it breaks for celltype, check this line
+    #print(f"df series: {df_series}")
+    new_df_series = []
+    for l in df_series:
+        #each element is a list of skids 
+        #print(f'l in df_series: {l}')
+        new_l = []
+        for skid in l:
+            #  print(f'skid: {skid}')
+            new_l.append(get_celltype_name(skid, skid_to_celltype))
+        new_df_series.append(new_l)
+    new_df_series = [new_df_series]
     connector_df[new_col_name] = new_df_series
