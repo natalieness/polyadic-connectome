@@ -68,10 +68,11 @@ connector_details['presyn_hemi'] = connector_details['presynaptic_to'].apply(lam
 
 # %% start with a single neuron 
 presyn_neu = pairs['leftid'][30]
+presyn_neuR = pairs['rightid'][30]
 con = connector_details[connector_details['presynaptic_to'] == presyn_neu]
+conR = connector_details[connector_details['presynaptic_to'] == presyn_neuR]
 
 all_ps_flat = np.unique(list(chain.from_iterable(con['postsynaptic_to'].values)))
-
 n_targets = len(all_ps_flat)
 n_cons = con.shape[0]
 print(f"Presynaptic neuron {presyn_neu} has {n_targets} postsynaptic targets and {n_cons} connectors.")
@@ -96,6 +97,7 @@ def con_binary_matrix(con, only_known_targets=False, all_neurons=all_neurons):
     return con_bin, all_ps_flat
 
 con_bin, all_ps_flat = con_binary_matrix(con, only_known_targets=True, all_neurons=all_neurons)
+con_binR, all_ps_flatR = con_binary_matrix(conR, only_known_targets=True, all_neurons=all_neurons)
 
 
 # %%
