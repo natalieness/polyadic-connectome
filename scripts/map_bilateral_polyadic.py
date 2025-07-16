@@ -12,6 +12,7 @@ import seaborn as sns
 from statsmodels.stats.multitest import multipletests
 from scipy import stats
 import matplotlib as mpl
+from sklearn.metrics.pairwise import cosine_similarity
 
 from contools import Celltype_Analyzer
 import pymaid
@@ -19,7 +20,7 @@ from pymaid_creds import url, name, password, token
 
 from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 from scripts.functions.group_based_stats import binarize_poly_adj, get_random_poly_adj, compare_two_sample_chi_squared, correct_pvals, plot_pvals_heatmap, plot_fold_change_heatmap, plot_significant_fold_change_heatmap, get_group_stats_from_bi_adj
-from scripts.functions.little_helper import get_celltype_dict, celltype_col_for_list, get_celltype_name, celltype_col_for_nestedlist
+from scripts.functions.little_helper import get_celltype_dict, celltype_col_for_list, get_celltype_name, celltype_col_for_nestedlist, get_pairs_dict
 from scripts.functions.undirected_graph_functions import get_postsynaptic_co_adj, map_co_adj_to_dict
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
@@ -158,25 +159,7 @@ grouped_ps_right = get_known_ps_partners(right_origin)
 
 #%% direct comparison
 
-pairs_dict = {}
-for index, row in pairs.iterrows():
-    # check if duplicate 
-    if row['leftid'] in pairs_dict.keys() or row['rightid'] in pairs_dict.keys():
-        print(f"Duplicate pair found: {row['leftid']} - {row['rightid']}")
-        if row['leftid'] in pairs_dict.keys():
-            existing_idx = pairs_dict[row['leftid']]
-            pairs_dict[row['rightid']] = existing_idx
-            continue
-        elif row['rightid'] in pairs_dict.keys():
-            existing_idx = pairs_dict[row['rightid']]
-            pairs_dict[row['leftid']] = existing_idx
-            continue
-        else:
-            print('something is wrong with the pairs_dict')
-
-    else:
-        pairs_dict[row['leftid']] = index
-        pairs_dict[row['rightid']] = index
+pairs_dict = get_pairs_dict(pairs)
 
 grouped_ps_left['presyn_pair'] = grouped_ps_left['presynaptic_to'].apply(lambda x: pairs_dict[x] if x in pairs_dict else np.nan)
 grouped_ps_right['presyn_pair'] = grouped_ps_right['presynaptic_to'].apply(lambda x: pairs_dict[x] if x in pairs_dict else np.nan)

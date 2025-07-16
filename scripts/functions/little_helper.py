@@ -68,3 +68,27 @@ def celltype_col_for_nestedlist(connector_df, col_name, skid_to_celltype, new_co
         new_df_series.append(new_l)
     new_df_series = [new_df_series]
     connector_df[new_col_name] = new_df_series
+
+
+def get_pairs_dict(pairs):
+    pairs_dict = {}
+    for index, row in pairs.iterrows():
+        # check if duplicate 
+        if row['leftid'] in pairs_dict.keys() or row['rightid'] in pairs_dict.keys():
+            print(f"Duplicate pair found: {row['leftid']} - {row['rightid']}")
+            if row['leftid'] in pairs_dict.keys():
+                existing_idx = pairs_dict[row['leftid']]
+                pairs_dict[row['rightid']] = existing_idx
+                continue
+            elif row['rightid'] in pairs_dict.keys():
+                existing_idx = pairs_dict[row['rightid']]
+                pairs_dict[row['leftid']] = existing_idx
+                continue
+            else:
+                print('something is wrong with the pairs_dict')
+
+        else:
+            pairs_dict[row['leftid']] = index
+            pairs_dict[row['rightid']] = index
+
+    return pairs_dict
