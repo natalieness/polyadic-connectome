@@ -52,7 +52,7 @@ def celltype_col_for_list(connector_df, col_name, skid_to_celltype, new_col_name
         for skid in l:
             new_l.append(get_celltype_name(skid, skid_to_celltype))
         new_df_series.append(new_l)
-    connector_df[new_col_name] = new_df_series.to_list()
+    connector_df[new_col_name] = new_df_series
 
 def celltype_col_for_nestedlist(connector_df, col_name, skid_to_celltype, new_col_name='postsynaptic_celltype'):
     df_series = connector_df[col_name].values[0] # changed this for pairs_dict, if it breaks for celltype, check this line
