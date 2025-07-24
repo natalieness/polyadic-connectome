@@ -25,6 +25,9 @@ def get_me_started():
     pairs = pd.read_csv('init_data/pairs-2022-02-14.csv')
     pairs_dict = get_pairs_dict(pairs)
 
+    flow_neurons = pd.read_csv('init_data/flow_neurons.csv')
+    flow_dict = dict(zip(flow_neurons['skid'], flow_neurons['flow_score']))
+
     # Load the neuron class 
     neuron_objects = get_neuron_class(
         all_presyn, skid_to_celltype, pairs_dict
@@ -43,5 +46,6 @@ def get_me_started():
     connector_details['presynaptic_pair'] = connector_details['presynaptic_to'].apply(lambda x: pairs_dict.get(x, None))
     connector_details['postsynaptic_pair'] = connector_details['postsynaptic_to'].apply(lambda x: [pairs_dict.get(v, None) for v in x])
 
-    return connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df
+    print('Loaded connector details, celltype, pairs and flow dicts and created neuron objects.')
+    return connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict
 

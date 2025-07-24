@@ -24,3 +24,25 @@ connector_details = pymaid.get_connector_details(all_connectors)
 connector_details = connector_details.dropna(subset=['presynaptic_to'])
 
 connector_details.to_csv('init_data/connector_details2025.csv', index=False)
+
+
+#%% get signal flow data 
+
+ann = pymaid.get_annotation_list()
+ann = ann['name'].to_list()
+
+ann_lvl7 = [a for a in ann if ('level-7_clusterID' in a) and ('signal-flow' in a)]
+
+flow_neurons = pd.DataFrame(columns=['skid', 'flow_score'])
+for a in ann_lvl7:
+    val = a[-6:]
+    try:
+        val = float(val) # this should only work for negative values
+    except ValueError:
+        val = val[1:] # remove underscore 
+        val = float(val)
+
+    lvl_skids = pymaid.get_skids_by_annotation(a)
+    flow_neurons = pd.concat([flow_neurons, pd.DataFrame({'skid': lvl_skids, 'flow_score': val})], ignore_index=True)
+
+flow_neurons.to_csv('init_data/flow_neurons.csv', index=False)
