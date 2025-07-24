@@ -49,3 +49,18 @@ def get_me_started():
     print('Loaded connector details, celltype, pairs and flow dicts and created neuron objects.')
     return connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict
 
+def get_me_labelled(connector_details, skid_to_celltype, pairs, pairs_dict):
+    ''' Adds labels to the connector details dataframe. Probably only useful for random networks?'''
+    #  map skid ids in connector details to celltypes
+    connector_details['presynaptic_celltype'] = connector_details['presynaptic_to'].apply(lambda x: skid_to_celltype.get(x, None))
+    connector_details['postsynaptic_celltype'] = connector_details['postsynaptic_to'].apply(
+        lambda x: [skid_to_celltype.get(v, None) for v in x])
+
+     # assign hemisphere of presynaptic neuron 
+    left_ns = pairs['leftid'].unique()
+    right_ns = pairs['rightid'].unique()
+    connector_details['presyn_hemi'] = connector_details['presynaptic_to'].apply(lambda x: 'right' if x in right_ns else 'left' if x in left_ns else None)
+
+    connector_details['presynaptic_pair'] = connector_details['presynaptic_to'].apply(lambda x: pairs_dict.get(x, None))
+    connector_details['postsynaptic_pair'] = connector_details['postsynaptic_to'].apply(lambda x: [pairs_dict.get(v, None) for v in x])
+    return connector_details

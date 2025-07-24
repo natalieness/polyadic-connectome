@@ -31,10 +31,12 @@ def con_binary_matrix(con, only_known_targets=False, all_neurons=None):
     con_bin = pd.DataFrame(con_bin, columns=all_ps_flat, index=con['connector_id'])
     return con_bin
 
-def filter_con(conLeft, conRight=None, type='individual', ct='LNs', ct_n=5):
+def filter_con(conLeft, conRight=None, type='individual', ct='LNs', ct_n=5, celltype_df=None):
     """ Filter connectors either by an individual presynaptic neuron 
     or a group of presynaptic neurons of a specific celltype.
     """
+    conR_f = 0
+
     if type =='group':
         conL_f = conLeft[conLeft['presynaptic_celltype'] == ct]
         if conRight is not None:
@@ -52,8 +54,6 @@ def filter_con(conLeft, conRight=None, type='individual', ct='LNs', ct_n=5):
         if conRight is not None:
             conR_f = conRight[conRight['presynaptic_to'] == presyn_neuR]
 
-        if conRight is None:
-            conR_f = 0
     return conL_f, conR_f
 
 # try on only connectors with top downstream partners 
@@ -237,7 +237,7 @@ def generate_target_heatmap(watch_targets, watch_pair_ids, motifs_to_watch):
 def normalise_rows(df):
     return df.div(df.sum(axis=1), axis=0)
 
-def get_and_plot_motif_targets(one_to_watch, top_motifs, target_df):
+def get_and_plot_motif_targets(one_to_watch, top_motifs, target_df, celltype_df=None):
     # this is obv not very systematic, just trying to explore 
     # this was to explore synapses from LNs
 
