@@ -129,7 +129,7 @@ for c in ct_names:
     counts_df['randL-randR'] = counts_df['randL'] - counts_df['randR']
     counts_df['L-randL'] = counts_df['L'] - counts_df['randL']
     counts_df['R-randR'] = counts_df['R'] - counts_df['randR']
-    counts_df['inter-vs-intra'] = abs(counts_df['L-randL'])/ (abs(counts_df['L-R'])) if counts_df['L-R'].sum() != 0 else 0.01
+    #counts_df['inter-vs-intra'] = abs(counts_df['L-randL'])/ (abs(counts_df['L-R'])) if counts_df['L-R'] != 0 else 0.01
 
     #cos_sim = cosine_similarity(counts_df[['L', 'randL']].values.reshape(1, -1))
 
