@@ -212,6 +212,81 @@ def get_simple_flow_motifs(conb, con, flow_dict=None, pairing=None, flow_norm=Tr
     target_counts = Counter(target_df['flow'])
     return target_df, target_counts
 
+### Still flow but simplified for multilayer class motifs ###
+
+def map_con_targets_to_flow(con, flow_dict=flow_dict):
+    flow_scores_series = pd.Series(index=con.index, dtype=object)
+    for c in con.index:
+        c_id = con.loc[c].connector_id
+        postsynaptic_to = con.loc[c, 'postsynaptic_to']
+        own_flow = flow_dict.get(con.loc[c, 'presynaptic_to'], None)
+        if own_flow is not None:
+            flow_scores = [flow_dict.get(skid, 'NA') for skid in postsynaptic_to]
+            flow_scores = [(score-own_flow if isinstance(score, (int, float)) else 'NA') 
+                           for score in flow_scores]
+            flow_scores = [('FB' if score > 0 else 'FF') if isinstance(score, (int, float)) else 'NA' 
+                           for score in flow_scores]
+            flow_scores_series[c] = flow_scores
+    con['flow_scores'] = flow_scores_series
+    return con
+
+def get_flow_motifs(con):
+    # make sure orientation is always in order 
+    flow_scores_series = con['flow_scores']
+    flow_scores_series = flow_scores_series.apply(lambda x: tuple(sorted(x)) if isinstance(x, (list, tuple)) else x)
+    flow_motifs = flow_scores_series.value_counts().to_dict()
+    return flow_motifs
+
+def remove_incomplete_flow_motifs(flow_motifs):
+    """ Remove motifs that are not complete, i.e. do not have both FF and FB """
+    complete_motifs = {k: v for k, v in flow_motifs.items() if 'NA' not in k}
+    return complete_motifs
+
+def map_con_targets_to_real_neurons(con, all_neurons=all_neurons):
+    reality_check_series = pd.Series(index=con.index, dtype=object)
+    for c in con.index:
+        postsynaptic_to = con.loc[c, 'postsynaptic_to']
+        reality_check = ['REAL' if skid in all_neurons else 'FRAG' for skid in postsynaptic_to]
+        reality_check_series[c] = reality_check
+    con['flow_scores'] = reality_check_series # again need to change this in future but leaving to keep it working with other functions for now
+    return con
+
+### Get motifs of top targets vs low targets ###
+
+def get_partner_motifs(con, syn_threshold=3, use_global=True, pn_target_dict=glob_top_targets):
+
+    # get top targets based on synapse count threshold for each presynaptic neuron
+    presyn_neurons = con['presynaptic_to'].unique()
+    if use_global:
+        pn_target_dict = glob_top_targets
+    else:
+        pn_target_dict = {}
+        for pn in presyn_neurons:
+            con_p = con[con['presynaptic_to'] == pn]
+            # binarise to apply the top target function - should probably just rewrite this
+            conb_p = con_binary_matrix(con_p, only_known_targets=False, all_neurons=all_neurons)
+            if conb_p.empty:
+                continue
+            # get top targets for this presynaptic neuron
+            _, top_targets_df = get_top_targets(conb_p, syn_threshold=syn_threshold)
+            pn_target_dict[pn] = list(top_targets_df['target'])
+
+    # get motif counts with top targets vs random targets
+    motif_series = pd.Series(index=con.index, dtype=object)
+    for c in con.index:
+        # get top targets expected for this presynaptic neuron
+        presyn_neuron = con.loc[c, 'presynaptic_to']
+        if presyn_neuron not in pn_target_dict:
+            raise ValueError(f"Presynaptic neuron {presyn_neuron} not found in top target dictionary.")
+        pn_targets = pn_target_dict[presyn_neuron]
+        # get postsynaptic partners for this connector
+        postsynaptic_to = con.loc[c, 'postsynaptic_to']
+        # cmap targets to top targets or low targets 
+        target_motif = ['TOP' if skid in pn_targets else 'LOW' for skid in postsynaptic_to]
+        motif_series[c] = target_motif
+    con['flow_scores'] = motif_series # just not renaming cause I hard coded the other function - will fix later
+    return con
+
 ### Get and plot top motifs ### 
 def generate_target_heatmap(watch_targets, watch_pair_ids, motifs_to_watch):
     all_targets = np.unique(list(chain.from_iterable(watch_targets)))
