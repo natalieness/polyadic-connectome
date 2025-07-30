@@ -119,7 +119,7 @@ filtered_df = hypercon.get_all_filtered(4)  # example for filtering by layer wit
 
 #top_targets_hypercon = hypercon.apply_some_function_on_binarised(4, get_top_targets)
 
-#%%
+#%% example usage on a single layer
 # try it 
 val = 3
 result_flow_motifs = hypercon.apply_multiple_functions(val, [map_con_targets_to_flow, get_flow_motifs])
@@ -423,5 +423,227 @@ data_legend = ax.legend(title='Presynaptic neurons', loc='upper right', bbox_to_
 ax.add_artist(data_legend) 
 ax.legend(handles=size_legend, title='No. of partners', loc='upper right', bbox_to_anchor=(1.3, 0.73))
 
+
+# %% attempt to delete all the code above in lieu for this nicer general version 
+
+def compute_motif_summary(hypercon, val, motif_funcs, motif_labels=None):
+    """
+    Applies list of functions to hypercon object filtered by layer 'val'
+    Parameters:
+    hypercon: HyperCon object containing connector dataframes
+    val: int, the layer
+    motif_funcs: list of functions to apply to the filtered connector dataframes
+    motif_labels: list of str (optional) to override column names in result dataframe  
+    """
+    result = hypercon.apply_multiple_functions(val, motif_funcs)
+    df = pd.DataFrame.from_dict(result, orient='columns')
+    df.index = df.index.map(lambda x: str(x))
+    df = df.fillna(0)
+    if motif_labels: 
+        df.columns = motif_labels
+    return df
+
+def plot_motif_bar_comparison(summary_df, labels=None, colors=None, title=None, plot_proportions=False):
+    """
+    Create grouped bar plot comparing motif counts or proportions across conditions.
+    
+    Parameters:
+        summary_df: pd.DataFrame - motif summary
+        labels: list of str - legend labels for each column
+        colors: list of str - colors per condition
+        title: str - optional plot title
+        plot_proportions: bool - whether to plot proportions
+    """
+    if plot_proportions:
+        summary_df = summary_df.div(summary_df.sum(axis=0), axis=1)
+    if labels is None:
+        labels = summary_df.columns.tolist()
+
+    # sort the motifs to make it easier to compare 
+    # get all the different options in the motifs 
+    idxes = [eval(j) for j in summary_df.index.tolist()]
+    motif_elements = np.unique(list(chain.from_iterable(idxes)))
+    # sort the elements if any fo the following are in there 
+    favourites = ['FF', 'REAL', 'TOP']
+    el = [j for j in favourites if j in motif_elements]
+    if len(el) > 0:
+        motif_elements = np.append(el, motif_elements[~np.isin(motif_elements, el)])
+
+    # now sort the index of the summary_df by the motif elements
+    n_first = [j.count(motif_elements[0]) for j in idxes]
+    n_first_order = np.argsort(n_first)
+    summary_df = summary_df.iloc[n_first_order[::-1],:]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    xvals = np.arange(summary_df.shape[0])
+    bw = 0.15
+    if summary_df.shape[1] == 4:
+        colrs = ["#037AF1","#89BBEE", "#FA7D00", "#ECBA87"]
+    else:
+        colrs = colors if colors else sns.color_palette("tab10", n_colors=summary_df.shape[1])
+
+    for i, col in enumerate(summary_df.columns):
+        ax.bar(xvals + i * bw, summary_df[col], width=bw, label=labels[i], alpha=0.7, color=colrs[i])
+
+    ax.set_xticks(xvals + (len(summary_df.columns)-1)/2 * bw)
+    ax.set_xticklabels(summary_df.index, rotation=45, ha='right')
+    ax.set_ylabel('Proportion of synapses' if plot_proportions else 'Motif count')
+    if title:
+        ax.set_title(title)
+    ax.legend()
+    plt.tight_layout()
+
+
+def compute_cosine_similarities(df):
+    """
+    Compute cosine similarities between specified column pairs.
+
+    Parameters:
+        df: pd.DataFrame - motif summary table
+
+    Returns:
+        dict: {pair: cosine similarity}
+    """
+    results = {}
+    for (a, b) in combinations(df.columns, 2):
+        sim = cosine_similarity(df[a].values.reshape(1, -1), df[b].values.reshape(1, -1))[0][0]
+        results[f'{a}-{b}'] = sim
+    return results
+
+def extract_motif_proportions(summary_df, props=None):
+    """
+    Extract specific motif proportions (e.g., TOP/LOW/mixed) across datasets.
+
+    Parameters:
+        summary_df: pd.DataFrame
+
+    Returns:
+        dict: proportions by type and condition
+    """
+    sums = summary_df.sum(axis=0).values
+    idxes = [eval(j) for j in summary_df.index.tolist()]
+    elements = np.unique(list(chain.from_iterable(idxes)))
+    elements = [j for j in elements if j != 'NA'] # remove nas from elements to examine
+    if len(elements) > 2:
+        raise ValueError("Expected only two elements in motifs, e.g. 'TOP' and 'LOW'.")
+    
+    inferred_val = len(idxes[0]) # number of elements in each motif 
+    top_str = str(tuple(([elements[0]])*inferred_val))
+    low_str = str(tuple(([elements[1]])*inferred_val))
+
+    if top_str in summary_df.index:
+        just_tops = summary_df.loc[top_str].values / sums
+    else:
+        just_tops = np.zeros_like(sums)
+    if low_str in summary_df.index:
+        just_lows = summary_df.loc[low_str].values / sums
+    else:
+        just_lows = np.zeros_like(sums)
+    all_motifs = 1 - just_tops - just_lows
+
+    if props is None:
+        props = pd.DataFrame(index=summary_df.columns)
+    props[f'{inferred_val}-{elements[0]}'] = just_tops
+    props[f'{inferred_val}-{elements[1]}'] = just_lows
+    props[f'{inferred_val}-mixed'] = all_motifs
+    return props
+
+def plot_motif_summary_pure_and_mixed(proportions, labels=None):
+    if labels is None:
+        labels = proportions.columns.tolist()
+    # reformat proportions for plotting 
+    proportions['class'] = proportions.index.get_level_values('class')
+    proportions['num'] = proportions.index.get_level_values('num').astype(int)
+
+    proportions = proportions.reset_index(drop=True)
+    prop_plot = proportions.groupby('class').agg(list)
+    propPlot = prop_plot.drop(columns=['num'])
+    #propPlot = propPlot.loc[['ff','mixed','fb']] # not sure what this used to do?
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    x_offset = 0.15
+    x_vals = np.arange(propPlot.shape[0])
+    x_flat = x_vals
+    x_vals = [ [x]*len(propPlot.iloc[0,0]) for x in x_vals]
+    x_vals = list(chain.from_iterable(x_vals))
+    if propPlot.shape[1] == 4:
+        colrs = ["#037AF1","#89BBEE", "#FA7D00", "#ECBA87"]
+    else:
+        colrs = sns.color_palette("tab10", n_colors=propPlot.shape[1])
+    ms_min = 12
+    ms_max = 90
+    markersizes = np.linspace(ms_min, ms_max, len(propPlot.iloc[0,0]))
+    markersizes = list(chain.from_iterable([markersizes]*propPlot.shape[0]))
+
+    size_legend = [
+        Line2D([0], [0], marker='o', color='none', label='2', 
+            markerfacecolor='gray', markersize=np.sqrt(ms_min)),  # sqrt to match scatter sizing
+        Line2D([0], [0], marker='o', color='none', label='8', 
+            markerfacecolor='gray', markersize=np.sqrt(ms_max)),
+    ]
+
+
+    for i, (col, lbl) in enumerate(zip(propPlot.columns, labels)):
+        ax.scatter(np.array(x_vals) + i * x_offset, propPlot[col].explode(), label=lbl, alpha=0.5, color=colrs[i], s=markersizes)
+        ax.errorbar(np.array(x_flat) + i * x_offset, [np.mean(y) for y in list(propPlot[col])], fmt='_', color=colrs[i], markersize=13, mew=3, capsize=5, elinewidth=0)
+
+    ax.set_xticks(x_flat + 1.5 * x_offset)
+    ax.set_xticklabels(propPlot.index)
+    ax.set_ylabel('Proportion of postsynaptic partners')
+
+    data_legend = ax.legend(title='Presynaptic neurons', loc='upper right', bbox_to_anchor=(1.3, 1.0))
+    ax.add_artist(data_legend) 
+    ax.legend(handles=size_legend, title='No. of partners', loc='upper right', bbox_to_anchor=(1.3, 0.73))
+
+
+def motif_summary_across_layers(hypercon, motif_funcs, layer_range=range(2, 9), labels=None, plot_individual=True, plot_summary=True):
+    """
+    Run analysis across multiple layers and return summary tables.
+
+    Returns:
+        proportions_df: pd.DataFrame
+        cosine_df: pd.DataFrame
+    """
+    props=None
+    cos_sims = {}
+
+    for val in layer_range:
+        summary = compute_motif_summary(hypercon, val, motif_funcs, motif_labels=labels)
+        props = extract_motif_proportions(summary, props=props)
+
+        cos = compute_cosine_similarities(summary)
+        cos_sims[f'{val}'] = cos
+
+        if plot_individual: # plot each layer's summary bar graph of motifs 
+            plot_motif_bar_comparison(summary, labels=labels, title=f"Flow motifs for {val} partners", plot_proportions=True)
+
+    proportions = props.T
+    new_index = proportions.index.str.extract(r'(?P<num>\d+)-(?P<class>\w+)')
+    proportions.index = pd.MultiIndex.from_frame(new_index)
+    if plot_summary:
+        plot_motif_summary_pure_and_mixed(proportions, labels=labels)
+
+    cos_df = pd.DataFrame.from_dict(cos_sims, orient='index')
+
+    return proportions, cos_df
+
+
+
+# example usage
+
+mpl.rcParams.update({'font.size': 12, 'axes.labelsize': 16, 'xtick.labelsize': 14, 'ytick.labelsize': 14, 'axes.spines.right': False, 'axes.spines.top': False})
+
+val = 5
+motif_funcs = [map_con_targets_to_flow, get_flow_motifs]
+motif_labels = ['Left', 'Rand. Left', 'Right', 'Rand. Right']
+# individual layer:
+# flow_motif_summary = compute_motif_summary(hypercon, val, motif_funcs, motif_labels)
+# plot_motif_bar_comparison(flow_motif_summary, motif_labels, title=f"Flow motifs for {val} partners", plot_proportions=True)
+# props = extract_motif_proportions(flow_motif_summary, props=None)
+
+proportions_flow_all, cos_flow_all = motif_summary_across_layers(hypercon, motif_funcs, layer_range=range(2, 9), labels=motif_labels)
+
+
+# TODO: check when removing na's would make sense - atm it doesn't make sense because it messes up the proportions by just filtering out all the mixed synapses 
 
 # %%
