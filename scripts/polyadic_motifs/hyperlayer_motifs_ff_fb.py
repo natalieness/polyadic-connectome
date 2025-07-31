@@ -49,10 +49,10 @@ conL_f, conR_f = filter_con(conL, conR, type=type, ct=ct, ct_n=5, celltype_df=ce
 con_randL_f, con_randR_f = filter_con(con_randL, con_randR, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
 
 # else just take the whole connector dataframe:
-# conL_f = conL.copy()
-# conR_f = conR.copy()
-# con_randL_f = con_randL.copy()
-# con_randR_f = con_randR.copy()
+conL_f = conL.copy()
+conR_f = conR.copy()
+con_randL_f = con_randL.copy()
+con_randR_f = con_randR.copy()
 
 #%% construct hyperlayer graphs instead 
 
@@ -439,11 +439,14 @@ def compute_motif_summary(hypercon, val, motif_funcs, motif_labels=None):
     df = pd.DataFrame.from_dict(result, orient='columns')
     df.index = df.index.map(lambda x: str(x))
     df = df.fillna(0)
+    # sort the df columns to group by hemisphere 
+    df = df[['conL_f', 'con_randL_f', 'conR_f', 'con_randR_f']]
     if motif_labels: 
-        df.columns = motif_labels
+        df.columns = df.columns.map(lambda x: motif_labels[x] if x in motif_labels else x)
+    
     return df
 
-def plot_motif_bar_comparison(summary_df, labels=None, colors=None, title=None, plot_proportions=False):
+def plot_motif_bar_comparison(summary_df, colors=None, title=None, plot_proportions=False):
     """
     Create grouped bar plot comparing motif counts or proportions across conditions.
     
@@ -456,8 +459,8 @@ def plot_motif_bar_comparison(summary_df, labels=None, colors=None, title=None, 
     """
     if plot_proportions:
         summary_df = summary_df.div(summary_df.sum(axis=0), axis=1)
-    if labels is None:
-        labels = summary_df.columns.tolist()
+
+    labels = summary_df.columns.tolist()
 
     # sort the motifs to make it easier to compare 
     # get all the different options in the motifs 
@@ -544,13 +547,13 @@ def extract_motif_proportions(summary_df, props=None):
     if props is None:
         props = pd.DataFrame(index=summary_df.columns)
     props[f'{inferred_val}-{elements[0]}'] = just_tops
-    props[f'{inferred_val}-{elements[1]}'] = just_lows
     props[f'{inferred_val}-mixed'] = all_motifs
+    props[f'{inferred_val}-{elements[1]}'] = just_lows
+    
     return props
 
-def plot_motif_summary_pure_and_mixed(proportions, labels=None):
-    if labels is None:
-        labels = proportions.columns.tolist()
+def plot_motif_summary_pure_and_mixed(proportions):
+
     # reformat proportions for plotting 
     proportions['class'] = proportions.index.get_level_values('class')
     proportions['num'] = proportions.index.get_level_values('num').astype(int)
@@ -558,7 +561,10 @@ def plot_motif_summary_pure_and_mixed(proportions, labels=None):
     proportions = proportions.reset_index(drop=True)
     prop_plot = proportions.groupby('class').agg(list)
     propPlot = prop_plot.drop(columns=['num'])
-    #propPlot = propPlot.loc[['ff','mixed','fb']] # not sure what this used to do?
+    # ensure mixed type is in the middle 
+    loc_mid = np.where(propPlot.index.unique() == 'mixed')[0][0]
+    other_locs = [f for f in range(propPlot.shape[0]) if f != loc_mid]
+    propPlot = propPlot.iloc[[other_locs[0], loc_mid, other_locs[1]], :]
 
     fig, ax = plt.subplots(figsize=(7, 6))
     x_offset = 0.15
@@ -578,13 +584,13 @@ def plot_motif_summary_pure_and_mixed(proportions, labels=None):
     size_legend = [
         Line2D([0], [0], marker='o', color='none', label='2', 
             markerfacecolor='gray', markersize=np.sqrt(ms_min)),  # sqrt to match scatter sizing
-        Line2D([0], [0], marker='o', color='none', label='8', 
+        Line2D([0], [0], marker='o', color='none', label=f'{len(propPlot.iloc[0,0])+1}', 
             markerfacecolor='gray', markersize=np.sqrt(ms_max)),
     ]
 
 
-    for i, (col, lbl) in enumerate(zip(propPlot.columns, labels)):
-        ax.scatter(np.array(x_vals) + i * x_offset, propPlot[col].explode(), label=lbl, alpha=0.5, color=colrs[i], s=markersizes)
+    for i, col in enumerate(propPlot.columns):
+        ax.scatter(np.array(x_vals) + i * x_offset, propPlot[col].explode(), label=col, alpha=0.5, color=colrs[i], s=markersizes)
         ax.errorbar(np.array(x_flat) + i * x_offset, [np.mean(y) for y in list(propPlot[col])], fmt='_', color=colrs[i], markersize=13, mew=3, capsize=5, elinewidth=0)
 
     ax.set_xticks(x_flat + 1.5 * x_offset)
@@ -609,19 +615,20 @@ def motif_summary_across_layers(hypercon, motif_funcs, layer_range=range(2, 9), 
 
     for val in layer_range:
         summary = compute_motif_summary(hypercon, val, motif_funcs, motif_labels=labels)
+
         props = extract_motif_proportions(summary, props=props)
 
         cos = compute_cosine_similarities(summary)
         cos_sims[f'{val}'] = cos
 
         if plot_individual: # plot each layer's summary bar graph of motifs 
-            plot_motif_bar_comparison(summary, labels=labels, title=f"Flow motifs for {val} partners", plot_proportions=True)
+            plot_motif_bar_comparison(summary, title=f"Flow motifs for {val} partners", plot_proportions=True)
 
     proportions = props.T
     new_index = proportions.index.str.extract(r'(?P<num>\d+)-(?P<class>\w+)')
     proportions.index = pd.MultiIndex.from_frame(new_index)
     if plot_summary:
-        plot_motif_summary_pure_and_mixed(proportions, labels=labels)
+        plot_motif_summary_pure_and_mixed(proportions)
 
     cos_df = pd.DataFrame.from_dict(cos_sims, orient='index')
 
@@ -629,13 +636,13 @@ def motif_summary_across_layers(hypercon, motif_funcs, layer_range=range(2, 9), 
 
 
 
-# example usage
+# example usage for flow 
 
 mpl.rcParams.update({'font.size': 12, 'axes.labelsize': 16, 'xtick.labelsize': 14, 'ytick.labelsize': 14, 'axes.spines.right': False, 'axes.spines.top': False})
 
-val = 5
+#val = 5
 motif_funcs = [map_con_targets_to_flow, get_flow_motifs]
-motif_labels = ['Left', 'Rand. Left', 'Right', 'Rand. Right']
+motif_labels =  {'conL_f': 'Left', 'con_randL_f': 'Rand. Left', 'conR_f': 'Right', 'con_randR_f': 'Rand. Right'}
 # individual layer:
 # flow_motif_summary = compute_motif_summary(hypercon, val, motif_funcs, motif_labels)
 # plot_motif_bar_comparison(flow_motif_summary, motif_labels, title=f"Flow motifs for {val} partners", plot_proportions=True)
@@ -645,5 +652,10 @@ proportions_flow_all, cos_flow_all = motif_summary_across_layers(hypercon, motif
 
 
 # TODO: check when removing na's would make sense - atm it doesn't make sense because it messes up the proportions by just filtering out all the mixed synapses 
+
+# %% using partner motifs 
+partner_funcs = [get_partner_motifs, get_flow_motifs]
+
+props_partner_all, cos_partner_all = motif_summary_across_layers(hypercon, partner_funcs, layer_range=range(2, 9))
 
 # %%
