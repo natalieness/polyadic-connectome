@@ -250,6 +250,30 @@ def get_postsynaptic_co_adj(hyperedges):
 
     return adj_matrix, ordered_postsynaptic
 
+def get_agg_ct_polyadj(adj, ct_in_adj, unique_cts=None):
+    #s = time.time()
+    if unique_cts is None:
+        unique_cts = np.unique(ct_in_adj)
+    # Map cell types to integer labels
+    ctype_to_int = {ctype: i for i, ctype in enumerate(unique_cts)}
+    ct_labels = np.vectorize(ctype_to_int.get)(ct_in_adj)
+
+    n_types = len(unique_cts)
+    n_cells = len(ct_labels)
+
+    # Build assignment matrix
+    assign_matrix = np.zeros((n_types, n_cells))
+    assign_matrix[ct_labels, np.arange(n_cells)] = 1
+
+    # Perform fast aggregation using matrix multiplication
+    agg_matrix = assign_matrix @ adj @ assign_matrix.T
+
+    # Convert to DataFrame
+    agg_df = pd.DataFrame(agg_matrix, index=unique_cts, columns=unique_cts)
+    #e = time.time()
+    #print(f"Time taken for aggregation: {e - s:.2f} seconds")
+    return agg_df, unique_cts
+
 def map_co_adj_to_dict(adj_matrix, ordered_ps_in_adj, skid_dict, filter_adj=True):
      # get the cell types for each postsynaptic partner
     ps_type_in_adj = [skid_dict.get(post, 'NA') for post in ordered_ps_in_adj]

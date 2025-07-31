@@ -51,7 +51,7 @@ def get_n_possible_matrix(ct_labels, group_order):
     return n_pos_mat, group_order
 
 
-def compare_two_sample_chi_squared(poly_adj1, ct_labels1, poly_adj2, ct_labels2):
+def compare_two_sample_chi_squared(poly_adj1, ct_labels1, poly_adj2, ct_labels2, test='chi2'):
     """
     Compare two polyadic adjacency matrices using a chi-squared test.
     Assumes both matrices are binarised and have the same cell group labels.
@@ -77,7 +77,11 @@ def compare_two_sample_chi_squared(poly_adj1, ct_labels1, poly_adj2, ct_labels2)
                 continue
             cont_table = np.array([[n_obs1, n_pos1 - n_obs1], 
                                    [n_obs2, n_pos2 - n_obs2]])
-            chi2, p_val, _, _ = stats.chi2_contingency(cont_table)
+            if test == 'chi2':
+                chi2, p_val, _, _ = stats.chi2_contingency(cont_table)
+            elif test == 'fisher':
+                odds_ratio, p_val = stats.fisher_exact(cont_table)
+                chi2 = odds_ratio  # Not a chi-squared value, but using for consistency
             stats_chi[e, f + e] = chi2
             pvals_uncorrected[e, f + e] = p_val
 
