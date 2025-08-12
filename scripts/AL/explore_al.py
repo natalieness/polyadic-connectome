@@ -154,6 +154,8 @@ top_motifs_randR, _ = run_top_target_ct_motif_functions(conAL_randR, mel_AL['ski
 
 # %%
 
+all_counts = pd.DataFrame()
+
 for ct in mel_AL['ct_cat'].unique(): 
     conAL_f = conAL[conAL['presynaptic_ct'] == ct]
     conAL_f_rand = conAL_rand[conAL_rand['presynaptic_ct'] == ct]
@@ -178,6 +180,11 @@ for ct in mel_AL['ct_cat'].unique():
     counts_df['randL-randR'] = counts_df['randL'] - counts_df['randR']
     counts_df['L-randL'] = counts_df['L'] - counts_df['randL']
     counts_df['R-randR'] = counts_df['R'] - counts_df['randR']
+
+    counts_df['motif'] = counts_df['motif'].astype(str)
+    counts_df.set_index('motif', inplace=True)
+    all_counts = pd.concat([all_counts, counts_df], axis=1, join='outer') if not all_counts.empty else counts_df
+
     #counts_df['inter-vs-intra'] = abs(counts_df['L-randL'])/ (abs(counts_df['L-R'])) if counts_df['L-R'] != 0 else 0.01
 
     #cos_sim = cosine_similarity(counts_df[['L', 'randL']].values.reshape(1, -1))
@@ -186,4 +193,60 @@ for ct in mel_AL['ct_cat'].unique():
     print(f"Top motifs for {ct}:")
     print(counts_df.head(10))
 
+all_counts = all_counts.fillna(0)
+all_counts.columns = pd.MultiIndex.from_product([mel_AL['ct_cat'].unique(), ['L', 'randL', 'R', 'randR', 'L-R', 'randL-randR', 'L-randL', 'R-randR']])
+
 # %%
+just_L = all_counts.loc[:, (slice(None), 'L-randL')]
+just_L_norm = just_L.div(just_L.sum(axis=0), axis=1)
+plt.figure(figsize=(12, 8))
+plt.imshow(just_L_norm, cmap='coolwarm', aspect=0.3)
+plt.yticks(ticks=range(len(just_L_norm.index)), labels=just_L_norm.index)
+plt.xticks(ticks=range(len(just_L_norm.columns)), labels=just_L_norm.columns, rotation=90)
+
+
+# %%
+sorted_by_type = all_counts.loc[:, (slice(None), ['L', 'randL', 'R', 'randR'])]
+order = ['ORN', ' PN', 'mPN', 'global_LN', 'broad', 'keystone', 'selective_LN', 'picky', 'choosy', 'ventral', 'other']
+sorted_by_type.sort_index(axis=1, level=0, inplace=True, sort_remaining=False, key=lambda idx: idx.map(lambda x: order.index(x) if x in order else len(order)))
+sorted_by_type_norm = sorted_by_type.div(sorted_by_type.sum(axis=0), axis=1)
+#sorted_by_type_norm = sorted_by_type.copy()
+max_max = np.max([sorted_by_type_norm.max().max(), abs(sorted_by_type_norm.min().min())])
+plt.figure(figsize=(12,8))
+#plt.figure(figsize=(21, 19))
+plt.imshow(sorted_by_type_norm, cmap='OrRd', aspect=0.6) #, vmin=-max_max, vmax=max_max) # 0.8
+plt.yticks(ticks=range(len(sorted_by_type_norm.index)), labels=sorted_by_type_norm.index)
+plt.xticks(ticks=range(len(sorted_by_type_norm.columns)), labels=sorted_by_type_norm.columns, rotation=90)
+
+
+# %% just diff to rand
+
+sorted_by_type = all_counts.loc[:, (slice(None), ['L-randL', 'R-randR'])]
+
+order = ['ORN', ' PN', 'mPN', 'global_LN', 'broad', 'keystone', 'selective_LN', 'picky', 'choosy', 'ventral', 'other']
+sorted_by_type.sort_index(axis=1, level=0, inplace=True, sort_remaining=False, key=lambda idx: idx.map(lambda x: order.index(x) if x in order else len(order)))
+#sorted_by_type_norm = sorted_by_type.div(sorted_by_type.sum(axis=0), axis=1)
+sorted_by_type_norm = sorted_by_type.copy()
+max_max = np.max([sorted_by_type_norm.max().max(), abs(sorted_by_type_norm.min().min())])
+plt.figure(figsize=(12, 12))
+#plt.figure(figsize=(21, 19))
+plt.imshow(sorted_by_type_norm, cmap='coolwarm', aspect=0.6, vmin=-max_max, vmax=max_max) # 1
+plt.yticks(ticks=range(len(sorted_by_type_norm.index)), labels=sorted_by_type_norm.index)
+plt.xticks(ticks=range(len(sorted_by_type_norm.columns)), labels=sorted_by_type_norm.columns, rotation=90)
+
+
+# %% relative diff 
+sorted_by_type = all_counts.loc[:, (slice(None), ['L-randL', 'R-randR', 'L-R'])]
+for j in sorted_by_type.columns.levels[0]:
+    sorted_by_type[(j, 'L-normdiff')] = sorted_by_type[(j, 'L-randL')] / (sorted_by_type[(j, 'L-R')] + 1e-10)
+    sorted_by_type[(j, 'R-normdiff')] = sorted_by_type[(j, 'R-randR')] / (sorted_by_type[(j, 'L-R')] + 1e-10)
+
+#sorted_by_type.drop(columns=[(j, 'L-R') for j in sorted_by_type.columns.levels[0]], inplace=True)
+
+#sorted_by_type_norm = sorted_by_type.div(sorted_by_type.sum(axis=0), axis=1)
+sorted_by_type_norm = sorted_by_type.copy()
+max_max = np.max([sorted_by_type_norm.max().max(), abs(sorted_by_type_norm.min().min())])
+plt.figure(figsize=(12, 12))
+plt.imshow(sorted_by_type_norm, cmap='coolwarm', aspect=0.6, vmin=-max_max, vmax=max_max)
+plt.yticks(ticks=range(len(sorted_by_type_norm.index)), labels=sorted_by_type_norm.index)
+plt.xticks(ticks=range(len(sorted_by_type_norm.columns)), labels=sorted_by_type_norm.columns, rotation=90)
