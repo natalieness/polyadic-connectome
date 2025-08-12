@@ -37,7 +37,7 @@ con_randR = con_rand[con_rand['presyn_hemi'] == 'right']
 
 #filter by celltype or neuron_id 
 type = 'group' #individual or group
-ct = 'LNs'
+ct = 'sensories'
 
 conL_f, conR_f = filter_con(conL, conR, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
 con_randL_f, con_randR_f = filter_con(con_randL, con_randR, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
@@ -81,7 +81,7 @@ for motif, count in randR_top_motifs.items():
     print(f"{motif}: {count}")
 
 #conbR_fm = get_motifs(conbR_f, type_dict=skid_to_celltype)
-# %% examine if there is differences in the neurons involed in specific motifs 
+# %% examine if there is differences in the neurons involed in specific motifs
 
 
 one_to_watch = 'PNs'
@@ -105,7 +105,7 @@ def run_top_target_ct_motif_functions(conS, all_neurons, skid_to_celltype, pairs
 
 
 type='group'
-ct = ['PNs']
+ct = ['sensories']
 ct_names = celltype_df['name'].unique().tolist()
 for c in ct_names: 
     conL_f, conR_f = filter_con(conL, conR, type=type, ct=c, ct_n=5, celltype_df=celltype_df)

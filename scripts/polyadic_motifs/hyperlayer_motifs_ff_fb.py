@@ -146,6 +146,10 @@ across_cos_sim1 = cosine_similarity(np.array(fm_summary['conL_f']).reshape(1,-1)
 across_cos_sim2 = cosine_similarity(np.array(fm_summary['conR_f']).reshape(1,-1), np.array(fm_summary['con_randR_f']).reshape(1,-1))
 print(f"For value: {val}, Cosine similarity: L-R: {within_cos_sim}, L-randL: {across_cos_sim1}, R-randL: {across_cos_sim2}")
 
+#%% check out celltype motifs across specific layers 
+
+val = 3 
+
 
 
 # %% attempt to delete all the code above in lieu for this nicer general version 

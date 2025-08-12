@@ -214,7 +214,7 @@ def get_simple_flow_motifs(conb, con, flow_dict=None, pairing=None, flow_norm=Tr
 
 ### Still flow but simplified for multilayer class motifs ###
 
-def map_con_targets_to_flow(con, flow_dict=flow_dict):
+def map_con_targets_to_flow(con, flow_dict=None):
     flow_scores_series = pd.Series(index=con.index, dtype=object)
     for c in con.index:
         c_id = con.loc[c].connector_id
@@ -242,7 +242,7 @@ def remove_incomplete_flow_motifs(flow_motifs):
     complete_motifs = {k: v for k, v in flow_motifs.items() if 'NA' not in k}
     return complete_motifs
 
-def map_con_targets_to_real_neurons(con, all_neurons=all_neurons):
+def map_con_targets_to_real_neurons(con, all_neurons=None):
     reality_check_series = pd.Series(index=con.index, dtype=object)
     for c in con.index:
         postsynaptic_to = con.loc[c, 'postsynaptic_to']
@@ -253,12 +253,16 @@ def map_con_targets_to_real_neurons(con, all_neurons=all_neurons):
 
 ### Get motifs of top targets vs low targets ###
 
-def get_partner_motifs(con, syn_threshold=3, use_global=True, pn_target_dict=glob_top_targets):
+def get_partner_motifs(con, syn_threshold=3, use_global=True, pn_target_dict=None):
 
     # get top targets based on synapse count threshold for each presynaptic neuron
     presyn_neurons = con['presynaptic_to'].unique()
     if use_global:
-        pn_target_dict = glob_top_targets
+        try:
+            pn_target_dict = glob_top_targets
+        except NameError:
+            print("Global top targets not found.")
+            pn_target_dict = {}
     else:
         pn_target_dict = {}
         for pn in presyn_neurons:

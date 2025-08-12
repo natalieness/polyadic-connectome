@@ -123,6 +123,9 @@ def correct_pvals(pvals_uncorrected, method='holm'):
     pvals_flat = pvals_uncorrected.flatten()
     #not all are meaningful comparisons, and all duplicated, so only correct real pvalues 
     real_pvals = np.where(pvals_flat < 1.0)
+    if len(real_pvals[0]) == 0:
+        print("No real p-values to correct, returning original p-values - should be all 1.0.")
+        return np.ones_like(pvals_uncorrected), pvals_uncorrected, None, None
     real_pvals_flat = pvals_flat[real_pvals]
 
     reject, pvals_corrected, asidak, acbonf = multipletests(real_pvals_flat, method=method, alpha=0.05, is_sorted=False, returnsorted=False)
