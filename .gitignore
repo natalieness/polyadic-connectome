@@ -5,6 +5,7 @@ pymaid_creds.py
 #hide vs code specific & cache files
 .vscode/
 __pycache__
+.DS_Store
 
 
 
