@@ -281,6 +281,8 @@ def get_partner_motifs(con, syn_threshold=3, use_global=True, pn_target_dict=Non
         # get top targets expected for this presynaptic neuron
         presyn_neuron = con.loc[c, 'presynaptic_to']
         if presyn_neuron not in pn_target_dict:
+            print(type(presyn_neuron))
+            print(type(pn_target_dict.keys()[0]))
             raise ValueError(f"Presynaptic neuron {presyn_neuron} not found in top target dictionary.")
         pn_targets = pn_target_dict[presyn_neuron]
         # get postsynaptic partners for this connector

@@ -4,6 +4,7 @@
 from collections import Counter
 from itertools import chain, combinations, accumulate
 import time
+from functools import partial
 
 import pandas as pd
 import numpy as np
@@ -132,7 +133,12 @@ filtered_df = hypercon.get_all_filtered(4)  # example for filtering by layer wit
 #%% example usage on a single layer
 # try it 
 val = 3
-result_flow_motifs = hypercon.apply_multiple_functions(val, [map_con_targets_to_flow, get_flow_motifs])
+
+
+# use partial to supply some values to functions passed to hypercon 
+map_con_targets_to_flow_partial = partial(map_con_targets_to_flow, flow_dict=flow_dict)
+
+result_flow_motifs = hypercon.apply_multiple_functions(val, [map_con_targets_to_flow_partial, get_flow_motifs])
 
 fm_summary = pd.DataFrame.from_dict(result_flow_motifs, orient='columns')
 fm_summary.index = fm_summary.index.map(lambda x: str(x))
@@ -377,7 +383,7 @@ def motif_summary_across_layers(hypercon, motif_funcs, layer_range=range(2, 9), 
 mpl.rcParams.update({'font.size': 12, 'axes.labelsize': 16, 'xtick.labelsize': 14, 'ytick.labelsize': 14, 'axes.spines.right': False, 'axes.spines.top': False})
 
 #val = 5
-motif_funcs = [map_con_targets_to_flow, get_flow_motifs]
+motif_funcs = [map_con_targets_to_flow_partial, get_flow_motifs]
 motif_labels =  {'conL_f': 'Left', 'con_randL_f': 'Rand. Left', 'conR_f': 'Right', 'con_randR_f': 'Rand. Right'}
 # individual layer:
 # flow_motif_summary = compute_motif_summary(hypercon, val, motif_funcs, motif_labels)
@@ -390,9 +396,16 @@ proportions_flow_all, cos_flow_all, summary_flow_all = motif_summary_across_laye
 # TODO: check when removing na's would make sense - atm it doesn't make sense because it messes up the proportions by just filtering out all the mixed synapses 
 
 # %% using partner motifs 
-partner_funcs = [get_partner_motifs, get_flow_motifs]
+get_partner_motifs_partial = partial(get_partner_motifs, pn_target_dict=glob_top_targets)
+partner_funcs = [get_partner_motifs_partial, get_flow_motifs]
+
 
 props_partner_all, cos_partner_all, summary_partner_all = motif_summary_across_layers(hypercon, partner_funcs, layer_range=range(2, 9))
+
+#%% try with real vs fragment 
+map_con_targets_to_real_neurons_partial = partial(map_con_targets_to_real_neurons, all_neurons=all_neurons)
+motif_funcs_real = [map_con_targets_to_real_neurons_partial, get_flow_motifs]
+proportions_real_all, cos_real_all, summary_real_all = motif_summary_across_layers(hypercon, motif_funcs_real, layer_range=range(2, 9))
 
 # %%
 #%%
@@ -424,3 +437,4 @@ plt.tight_layout()
 
 
 #
+# %%
