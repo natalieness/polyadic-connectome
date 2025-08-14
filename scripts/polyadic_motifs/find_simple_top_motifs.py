@@ -39,8 +39,8 @@ con_randR = con_rand[con_rand['presyn_hemi'] == 'right']
 type = 'group' #individual or group
 ct = 'sensories'
 
-conL_f, conR_f = filter_con(conL, conR, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
-con_randL_f, con_randR_f = filter_con(con_randL, con_randR, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
+conL_f, conR_f = filter_con(conL, conR, pairs_dict=pairs_dict, pairs=pairs, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
+con_randL_f, con_randR_f = filter_con(con_randL, con_randR, pairs_dict=pairs_dict, pairs=pairs, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
 
 
 #%%
@@ -108,9 +108,9 @@ type='group'
 ct = ['sensories']
 ct_names = celltype_df['name'].unique().tolist()
 for c in ct_names: 
-    conL_f, conR_f = filter_con(conL, conR, type=type, ct=c, ct_n=5, celltype_df=celltype_df)
-    con_randL_f, con_randR_f = filter_con(con_randL, con_randR, type=type, ct=c, ct_n=5, celltype_df=celltype_df)
-    
+    conL_f, conR_f = filter_con(conL, conR, pairs_dict=pairs_dict, pairs=pairs, type=type, ct=c, ct_n=5, celltype_df=celltype_df)
+    con_randL_f, con_randR_f = filter_con(con_randL, con_randR, pairs_dict=pairs_dict, pairs=pairs, type=type, ct=c, ct_n=5, celltype_df=celltype_df)
+
     target_counts_L, top_motifs_L = run_top_target_ct_motif_functions(conL_f, all_neurons, skid_to_celltype, pairs_dict)
     target_counts_randL, top_motifs_randL = run_top_target_ct_motif_functions(con_randL_f, all_neurons, skid_to_celltype, pairs_dict)
     target_counts_R, top_motifs_R = run_top_target_ct_motif_functions(conR_f, all_neurons, skid_to_celltype, pairs_dict)

@@ -33,8 +33,8 @@ conL = connector_details[connector_details['presyn_hemi'] == 'left']
 conR = connector_details[connector_details['presyn_hemi'] == 'right']
 
 #%% filtering and having a look at specific ones - not in a loop like below
-conL_f, conR_f = filter_con(conL, conR, type='group', ct='MBONs', ct_n=5)
-con_f = filter_con(conA, type='group', ct='MBONs', ct_n=5)
+conL_f, conR_f = filter_con(conL, conR, pairs_dict=pairs_dict, pairs=pairs, type='group', ct='MBONs', ct_n=5)
+con_f = filter_con(conA, pairs_dict=pairs_dict, pairs=pairs, type='group', ct='MBONs', ct_n=5)
 
 #
 conbL_f = con_binary_matrix(conL_f, only_known_targets=True, all_neurons=all_neurons)
@@ -76,9 +76,9 @@ def get_flow_for_each_celltype(conL, conR=None, celltype_df=None, flow_dict=None
     mean_flow_presyn = []
     for ct in celltype_df['name'].unique():
         if conR is None:
-            conL_f, _ = filter_con(conL, type='group', ct=ct)
+            conL_f, _ = filter_con(conL, pairs_dict=pairs_dict, pairs=pairs, type='group', ct=ct)
         else:
-            conL_f, conR_f = filter_con(conL, conR, type='group', ct=ct)
+            conL_f, conR_f = filter_con(conL, conR, pairs_dict=pairs_dict, pairs=pairs, type='group', ct=ct)
 
 
         conbL_f = con_binary_matrix(conL_f, only_known_targets=True, all_neurons=all_neurons)

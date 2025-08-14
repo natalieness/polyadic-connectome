@@ -58,8 +58,8 @@ con_randR = con_rand[con_rand['presyn_hemi'] == 'right']
 type = 'group' #individual or group
 ct = 'MBONs'
 
-conL_f, conR_f = filter_con(conL, conR, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
-con_randL_f, con_randR_f = filter_con(con_randL, con_randR, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
+conL_f, conR_f = filter_con(conL, conR, pairs_dict=pairs_dict, pairs=pairs, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
+con_randL_f, con_randR_f = filter_con(con_randL, con_randR, pairs_dict=pairs_dict, pairs=pairs, type=type, ct=ct, ct_n=5, celltype_df=celltype_df)
 
 # else just take the whole connector dataframe:
 conL_f = conL.copy()

@@ -31,7 +31,7 @@ def con_binary_matrix(con, only_known_targets=False, all_neurons=None):
     con_bin = pd.DataFrame(con_bin, columns=all_ps_flat, index=con['connector_id'])
     return con_bin
 
-def filter_con(conLeft, conRight=None, type='individual', ct='LNs', ct_n=5, celltype_df=None):
+def filter_con(conLeft, conRight=None, pairs_dict=None, pairs=None, type='individual', ct='LNs', ct_n=5, celltype_df=None):
     """ Filter connectors either by an individual presynaptic neuron 
     or a group of presynaptic neurons of a specific celltype.
     """
@@ -46,6 +46,8 @@ def filter_con(conLeft, conRight=None, type='individual', ct='LNs', ct_n=5, cell
         # filter by specific neuron 
         presyn = celltype_df[celltype_df['name'] == ct]['skids'].values[0][ct_n]
         print(f'Celltype {ct} presynaptic neuron: {presyn}')
+        if pairs_dict or pairs is None:
+            raise ValueError("Please provide a pairs_dict and pairs to map neuron IDs to pairs.")
         pair_no = pairs_dict[presyn]
         presyn_neuL = pairs['leftid'].loc[pair_no]
         if conRight is not None:
