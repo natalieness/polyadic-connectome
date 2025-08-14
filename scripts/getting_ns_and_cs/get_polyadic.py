@@ -23,6 +23,9 @@ wanted_neurons = pymaid.get_skids_by_annotation(['mw brain and inputs', 'mw brai
 remove_neurons = pymaid.get_skids_by_annotation(['mw brain very incomplete', 'mw partially differentiated', 'mw motor'])
 all_neurons = list(np.setdiff1d(wanted_neurons, remove_neurons)) # remove neurons that are incomplete or partially differentiated (as well as SEZ motor neurons)
 
+# all_neurons = pd.DataFrame(all_neurons, columns=['skeleton_id'])
+# all_neurons.to_csv('init_data/all_neurons.csv', index=False)
+
 # get all synaptic sites associated with neurons 
 links = pymaid.get_connector_links(all_neurons, chunk_size=50)
 

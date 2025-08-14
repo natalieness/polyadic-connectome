@@ -17,7 +17,8 @@ from matplotlib.lines import Line2D
 from scripts.functions.motif_functions import (con_binary_matrix, get_top_targets, con_bin_cos_sim, 
 get_simple_flow_motifs, get_motifs, get_top_percentage_motifs, get_and_plot_motif_targets, 
 normalise_freq_cols, filter_con, map_con_targets_to_flow, get_flow_motifs, remove_incomplete_flow_motifs, 
-map_con_targets_to_real_neurons, get_partner_motifs, filter_col_presyn)
+map_con_targets_to_real_neurons, get_partner_motifs, filter_col_presyn, sort_list_by_input, remove_na, get_top_motifs_only,
+get_unique_ct_target_counts)
 from scripts.initialisation_scripts.get_me_started import get_me_started, get_me_labelled
 from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 
@@ -27,9 +28,7 @@ from scripts.functions.little_helper import get_global_top_targets
 seed = 40
 rng = np.random.default_rng(seed=seed)
 
-connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict = get_me_started()
-
-all_neurons = connector_details['presynaptic_to'].unique().tolist()
+connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict, all_neurons = get_me_started()
 
 con_rand = polyadic_edge_permutation(connector_details, rng=rng)
 con_rand = get_me_labelled(con_rand, skid_to_celltype, pairs, pairs_dict)
@@ -65,43 +64,12 @@ hypercon2 = hypercon.get_all_filtered(2)
 # %%
 ct_names = celltype_df['name'].unique().tolist()
 
-def sort_list_by_input(unordered_list, order):
-    cat = pd.Categorical(unordered_list, categories=order, ordered=True)
-    return pd.Series(unordered_list).sort_values(key=lambda x: cat).tolist()
-
-def remove_na(target_df):
-    target_df = target_df[target_df['motif'].apply(lambda x: 'NA' not in x)]
-    return target_df
-
-def get_top_motifs_only(target_df, top_percentage=0.01):
-    all_syns = target_df['count'].sum()
-    thresh = all_syns * top_percentage
-    target_df = target_df[target_df['count'] >= thresh]
-    return target_df
-
-def get_unique_ct_target_counts(con, remove_nan=True, top_percentage=0.01):
-    ps_targets = con['postsynaptic_celltype'].tolist()
-    ps_targets = [['NA' if k is None else k for k in sublist] for sublist in ps_targets]
-    ps_targets_sorted = [tuple(sort_list_by_input(y, ct_names)) for y in ps_targets] 
-    unique_ct_targets = np.unique(ps_targets_sorted).tolist()
-    ct_target_counts = Counter(ps_targets_sorted)
-    target_df = pd.DataFrame(ct_target_counts.items(), columns=['motif','count'])
-    if target_df.empty:
-        print("No motifs found for the given connector data.")
-        return target_df
-    if remove_nan:
-        target_df = remove_na(target_df)
-    if top_percentage is not None:
-        target_df = get_top_motifs_only(target_df, top_percentage=top_percentage)
-    target_df = target_df.sort_values(by='count', ascending=False).reset_index(drop=True)
-    return target_df
 
 
-
-val_to_use = 5
+val_to_use = 4
 results_ct = {}
 for c in ct_names:
-    results = hypercon.apply_multiple_functions(val_to_use, [lambda x: filter_col_presyn(x, c), get_unique_ct_target_counts])
+    results = hypercon.apply_multiple_functions(val_to_use, [lambda x: filter_col_presyn(x, c), lambda x: get_unique_ct_target_counts(x, remove_nan=True, ct_names=ct_names)])
     results_ct[c] = results
 
 
@@ -173,11 +141,12 @@ ax.imshow(results_rel, cmap='coolwarm', aspect=0.8, vmin=-1, vmax=1)
 ax.set_yticks(ticks=range(len(results_rel.index)), labels=results_rel.index)
 ax.set_xticks(ticks=range(len(results_rel.columns)), labels=results_rel.columns, rotation=90)
 #plt.tight_layout()
+#%%
 
 top10_shared_motifs = results_rel.sum(axis=1).nlargest(40).index.tolist()
 trd = results_rel.loc[top10_shared_motifs]
-wy = 8
-fig, ax = plt.subplots(1, 1, figsize=(12, wy))
+
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 ax.imshow(trd, cmap='coolwarm', aspect=0.5, vmin=-1, vmax=1)
 ax.set_yticks(ticks=range(len(trd.index)), labels=trd.index)
 ax.set_xticks(ticks=range(len(trd.columns)), labels=trd.columns, rotation=90)
@@ -186,5 +155,24 @@ ax.set_xticks(ticks=range(len(trd.columns)), labels=trd.columns, rotation=90)
 for xloc, cname in zip(ax.get_xticks()[::2],trd.columns.get_level_values(0)[::2]):
     xpos = xloc + 0.7
     ax.annotate(cname, xy=(xpos, 1.02), xycoords=('data', 'axes fraction'), fontsize=12, ha='center', rotation=90)
+
+# %% examine top ones for just some cell types 
+ct = 'LNs'
+n_plot = 40
+results_rel_ct = results_rel.copy()
+results_rel_ct.sort_values(by=(ct, 'L-diff'), ascending=False, inplace=True)
+
+fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+trd_ct = results_rel_ct.iloc[:n_plot, :]
+ax.imshow(trd_ct, cmap='coolwarm', aspect=0.5, vmin=-1, vmax=1)
+ax.set_yticks(ticks=range(len(trd_ct.index)), labels=trd_ct.index)
+ax.set_xticks(ticks=range(len(trd_ct.columns)), labels=trd_ct.columns, rotation=90)
+
+
+for xloc, cname in zip(ax.get_xticks()[::2],trd_ct.columns.get_level_values(0)[::2]):
+    xpos = xloc + 0.7
+    ax.annotate(cname, xy=(xpos, 1.02), xycoords=('data', 'axes fraction'), fontsize=12, ha='center', rotation=90)
+
+
 
 # %%

@@ -13,6 +13,8 @@ def get_me_started():
     # Load connectors 
     connector_details = pd.read_csv('init_data/connector_details2025.csv')
     all_presyn = connector_details['presynaptic_to'].unique()
+    all_neurons = pd.read_csv('init_data/all_neurons.csv')['skeleton_id'].tolist()
+    all_neurons = [int(x) for x in all_neurons]  # Ensure all_neurons is a list of integers
 
     connector_details['postsynaptic_to'] = connector_details['postsynaptic_to'].apply(ast.literal_eval)
     connector_details['postsynaptic_to_node'] = connector_details['postsynaptic_to_node'].apply(ast.literal_eval)
@@ -47,7 +49,7 @@ def get_me_started():
     connector_details['postsynaptic_pair'] = connector_details['postsynaptic_to'].apply(lambda x: [pairs_dict.get(v, None) for v in x])
 
     print('Loaded connector details, celltype, pairs and flow dicts and created neuron objects.')
-    return connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict
+    return connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict, all_neurons
 
 def get_me_labelled(connector_details, skid_to_celltype, pairs, pairs_dict):
     ''' Adds labels to the connector details dataframe. Probably only useful for random networks?'''

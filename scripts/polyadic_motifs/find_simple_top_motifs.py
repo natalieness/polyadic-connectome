@@ -19,9 +19,9 @@ from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 seed = 40
 rng = np.random.default_rng(seed=seed)
 
-connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict = get_me_started()
+connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict, all_neurons = get_me_started()
 
-all_neurons = connector_details['presynaptic_to'].unique().tolist()
+
 
 #%% get randomly permutated network to compare 
 

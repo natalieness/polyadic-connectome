@@ -280,11 +280,8 @@ def get_partner_motifs(con, syn_threshold=3, use_global=True, pn_target_dict=Non
     # get top targets based on synapse count threshold for each presynaptic neuron
     presyn_neurons = con['presynaptic_to'].unique()
     if use_global:
-        try:
-            pn_target_dict = glob_top_targets
-        except NameError:
-            print("Global top targets not found.")
-            pn_target_dict = {}
+        if pn_target_dict is None:
+            raise ValueError("Please provide a pn_target_dict to use global top targets.")
     else:
         pn_target_dict = {}
         for pn in presyn_neurons:
@@ -303,8 +300,6 @@ def get_partner_motifs(con, syn_threshold=3, use_global=True, pn_target_dict=Non
         # get top targets expected for this presynaptic neuron
         presyn_neuron = con.loc[c, 'presynaptic_to']
         if presyn_neuron not in pn_target_dict:
-            print(type(presyn_neuron))
-            print(type(pn_target_dict.keys()[0]))
             raise ValueError(f"Presynaptic neuron {presyn_neuron} not found in top target dictionary.")
         pn_targets = pn_target_dict[presyn_neuron]
         # get postsynaptic partners for this connector
@@ -377,3 +372,37 @@ def normalise_freq_cols(df):
     for col in freq_cols:
         df[f'{col}_norm'] = df[col] / (df[freq_cols[0]] + df[freq_cols[1]] + df[freq_cols[2]] + 1e-10)  # Adding a small value to avoid division by zero
     return df
+
+### from hyperlayer ct flow 
+def sort_list_by_input(unordered_list, order):
+    cat = pd.Categorical(unordered_list, categories=order, ordered=True)
+    return pd.Series(unordered_list).sort_values(key=lambda x: cat).tolist()
+
+def remove_na(target_df):
+    target_df = target_df[target_df['motif'].apply(lambda x: 'NA' not in x)]
+    return target_df
+
+def get_top_motifs_only(target_df, top_percentage=0.01):
+    all_syns = target_df['count'].sum()
+    thresh = all_syns * top_percentage
+    target_df = target_df[target_df['count'] >= thresh]
+    return target_df
+
+def get_unique_ct_target_counts(con, remove_nan=False, top_percentage=0.01, ct_names=None):
+    if ct_names is None:
+        raise ValueError("Please provide a list of cell type names to sort the targets.")
+    ps_targets = con['postsynaptic_celltype'].tolist()
+    ps_targets = [['NA' if k is None else k for k in sublist] for sublist in ps_targets]
+    ps_targets_sorted = [tuple(sort_list_by_input(y, ct_names)) for y in ps_targets] 
+    unique_ct_targets = np.unique(ps_targets_sorted).tolist()
+    ct_target_counts = Counter(ps_targets_sorted)
+    target_df = pd.DataFrame(ct_target_counts.items(), columns=['motif','count'])
+    if target_df.empty:
+        print("No motifs found for the given connector data.")
+        return target_df
+    if remove_nan:
+        target_df = remove_na(target_df)
+    if top_percentage is not None:
+        target_df = get_top_motifs_only(target_df, top_percentage=top_percentage)
+    target_df = target_df.sort_values(by='count', ascending=False).reset_index(drop=True)
+    return target_df

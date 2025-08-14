@@ -1,18 +1,13 @@
 
-from itertools import chain
-from collections import Counter
-from itertools import combinations
 import os
 
-import networkx as nx
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib as mpl
+
 from sklearn.metrics.pairwise import cosine_similarity
-from graspologic.utils import binarize
-from graspologic.models import SBMEstimator
 
 import pymaid
 from pymaid_creds import url, name, password, token

@@ -35,9 +35,9 @@ from scripts.functions.hyper_connectome_class import HyperCon
 seed = 40
 rng = np.random.default_rng(seed=seed)
 
-connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict = get_me_started()
+connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict, all_neurons = get_me_started()
 
-all_neurons = connector_details['presynaptic_to'].unique().tolist()
+
 
 con_rand = polyadic_edge_permutation(connector_details, rng=rng)
 con_rand = get_me_labelled(con_rand, skid_to_celltype, pairs, pairs_dict)
