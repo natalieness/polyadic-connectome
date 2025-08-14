@@ -20,7 +20,7 @@ from pymaid_creds import url, name, password, token
 from scripts.functions.undirected_graph_functions import get_postsynaptic_co_adj, get_agg_ct_polyadj
 from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 from scripts.functions.group_based_stats import binarize_poly_adj, get_random_poly_adj, compare_two_sample_chi_squared, correct_pvals, plot_pvals_heatmap, plot_fold_change_heatmap, plot_significant_fold_change_heatmap, get_group_stats_from_bi_adj
-from scripts.polyadic_motifs.motif_functions import con_binary_matrix, get_top_targets, con_bin_cos_sim, get_simple_flow_motifs, get_motifs, get_top_percentage_motifs, get_and_plot_motif_targets, filter_con
+from scripts.functions.motif_functions import con_binary_matrix, get_top_targets, con_bin_cos_sim, get_simple_flow_motifs, get_motifs, get_top_percentage_motifs, get_and_plot_motif_targets, filter_con
 from scripts.initialisation_scripts.get_me_started import get_me_started, get_me_labelled
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
