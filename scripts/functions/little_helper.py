@@ -6,6 +6,9 @@ import seaborn as sns
 import pymaid
 import networkx as nx
 
+from scripts.functions.motif_functions import con_binary_matrix, get_top_targets
+
+
 ### just printing a bunch of info about the data ###
 
 def inspect_data(links_df, verbose=True):
@@ -92,3 +95,23 @@ def get_pairs_dict(pairs):
             pairs_dict[row['rightid']] = index
 
     return pairs_dict
+
+def get_global_top_targets(connector_details, only_known_targets=False, syn_threshold=3):
+    """
+    Get global top targets for each presynaptic neuron.
+
+    Parameters:
+        connector_details: pd.DataFrame - connector details dataframe
+        only_known_targets: bool - whether to filter out unknown targets
+
+    Returns:
+        dict: {presynaptic_neuron: [top_targets]}
+    """
+    all_neurons = connector_details['presynaptic_to'].unique().tolist()
+    glob_top_targets = {}
+    for pn in connector_details['presynaptic_to'].unique():
+        conb = con_binary_matrix(connector_details[connector_details['presynaptic_to'] == pn],
+                                 only_known_targets=only_known_targets, all_neurons=all_neurons)
+        _, top_targets_df = get_top_targets(conb, syn_threshold=syn_threshold)
+        glob_top_targets[pn] = list(top_targets_df['target'])
+    return glob_top_targets

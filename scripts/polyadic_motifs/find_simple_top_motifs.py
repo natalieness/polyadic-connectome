@@ -12,7 +12,7 @@ from scipy import stats
 import matplotlib as mpl
 from sklearn.metrics.pairwise import cosine_similarity
 
-from scripts.polyadic_motifs.motif_functions import con_binary_matrix, get_top_targets, con_bin_cos_sim, get_simple_flow_motifs, get_motifs, get_top_percentage_motifs, get_and_plot_motif_targets, filter_con
+from scripts.functions.motif_functions import con_binary_matrix, get_top_targets, con_bin_cos_sim, get_simple_flow_motifs, get_motifs, get_top_percentage_motifs, get_and_plot_motif_targets, filter_con
 from scripts.initialisation_scripts.get_me_started import get_me_started, get_me_labelled
 from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 #generate numpy random instance

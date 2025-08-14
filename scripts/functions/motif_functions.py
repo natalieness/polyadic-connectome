@@ -56,6 +56,26 @@ def filter_con(conLeft, conRight=None, type='individual', ct='LNs', ct_n=5, cell
 
     return conL_f, conR_f
 
+# similar but different simpler filtering function
+def filter_col_presyn(con, ct):
+    try:
+        con = con[con['presynaptic_celltype'] == ct]
+    except KeyError:
+        print(f"Column 'presynaptic_celltype' not found in the connector dataframe.")
+        return con
+    if con.empty:
+        print(f"No data for presynaptic celltype: {ct}")
+        return con
+    return con
+
+# remove fragments 
+def cut_out_frags(con, all_neurons):
+    con = con.iloc[:,:5]
+    con = con[con['presynaptic_to'].isin(all_neurons)]
+    for c in con.index:
+        con.at[c, 'postsynaptic_to'] = [p for p in con.at[c, 'postsynaptic_to'] if p in all_neurons]
+    return con
+
 # try on only connectors with top downstream partners 
 def get_top_targets(conb, syn_threshold=3):
     '''
