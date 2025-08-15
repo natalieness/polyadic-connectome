@@ -20,8 +20,11 @@ from pymaid_creds import url, name, password, token
 
 from scripts.functions.random_polyadic_networks import polyadic_edge_permutation
 from scripts.functions.group_based_stats import binarize_poly_adj, get_random_poly_adj, compare_two_sample_chi_squared, correct_pvals, plot_pvals_heatmap, plot_fold_change_heatmap, plot_significant_fold_change_heatmap, get_group_stats_from_bi_adj
-from scripts.functions.little_helper import get_celltype_dict, celltype_col_for_list, get_celltype_name, celltype_col_for_nestedlist, get_pairs_dict
+from scripts.functions.little_helper import get_celltype_dict, celltype_col_for_list, get_celltype_name, celltype_col_for_nestedlist, get_pairs_dict, get_global_top_targets
 from scripts.functions.undirected_graph_functions import get_postsynaptic_co_adj, map_co_adj_to_dict
+
+from scripts.initialisation_scripts.get_me_started import get_me_started, get_me_labelled
+
 
 rm = pymaid.CatmaidInstance(url, token, name, password)
 
@@ -29,42 +32,43 @@ rm = pymaid.CatmaidInstance(url, token, name, password)
 seed = 40
 rng = np.random.default_rng(seed=seed)
 
-#%% get bilateral pairs 
+connector_details, skid_to_celltype, pairs, pairs_dict, neuron_objects, celltype_df, flow_dict, all_neurons = get_me_started()
+glob_top_targets = get_global_top_targets(connector_details, only_known_targets=False, syn_threshold=3)
 
-pairs = pd.read_csv('data/pairs-2022-02-14.csv')
-right_ns = pairs['rightid'].unique()
-left_ns = pairs['leftid'].unique()
+# #%% get bilateral pairs 
 
-#%% get cell type and synaptic data 
-# get celltype data for each skid 
-celltype_df,celltypes = Celltype_Analyzer.default_celltypes()
-# get dictionary to map skids to celltypes 
-skid_to_celltype = get_celltype_dict(celltype_df)
-ct_names = celltype_df['name'].unique()
+# pairs = pd.read_csv('data/pairs-2022-02-14.csv')
+# right_ns = pairs['rightid'].unique()
+# left_ns = pairs['leftid'].unique()
 
-# get synaptic sites from catmaid and describe data
-# select neurons to include 
-wanted_neurons = pymaid.get_skids_by_annotation(['mw brain and inputs', 'mw brain accessory neurons'])
-remove_neurons = pymaid.get_skids_by_annotation(['mw brain very incomplete', 'mw partially differentiated', 'mw motor'])
-all_neurons = list(np.setdiff1d(wanted_neurons, remove_neurons)) # remove neurons that are incomplete or partially differentiated (as well as SEZ motor neurons)
+# #%% get cell type and synaptic data 
+# # get celltype data for each skid 
+# celltype_df,celltypes = Celltype_Analyzer.default_celltypes()
+# # get dictionary to map skids to celltypes 
+# skid_to_celltype = get_celltype_dict(celltype_df)
+# ct_names = celltype_df['name'].unique()
 
-# get all synaptic sites associated with neurons 
-links = pymaid.get_connector_links(all_neurons, chunk_size=50)
+# # get synaptic sites from catmaid and describe data
+# # select neurons to include 
+# wanted_neurons = pymaid.get_skids_by_annotation(['mw brain and inputs', 'mw brain accessory neurons'])
+# remove_neurons = pymaid.get_skids_by_annotation(['mw brain very incomplete', 'mw partially differentiated', 'mw motor'])
+# all_neurons = list(np.setdiff1d(wanted_neurons, remove_neurons)) # remove neurons that are incomplete or partially differentiated (as well as SEZ motor neurons)
 
-#get connector details 
-all_connectors = links['connector_id'].unique()
-connector_details = pymaid.get_connector_details(all_connectors)
+# # get all synaptic sites associated with neurons 
+# links = pymaid.get_connector_links(all_neurons, chunk_size=50)
 
-# remove connector details without presynaptic site 
-connector_details = connector_details.dropna(subset=['presynaptic_to'])
+# #get connector details 
+# all_connectors = links['connector_id'].unique()
+# connector_details = pymaid.get_connector_details(all_connectors)
 
-#  map skid ids in connector details to celltypes
-connector_details['presynaptic_celltype'] = connector_details['presynaptic_to'].apply(lambda x: get_celltype_name(x, skid_to_celltype=skid_to_celltype))
-celltype_col_for_list(connector_details, 'postsynaptic_to', skid_to_celltype=skid_to_celltype, new_col_name='postsynaptic_celltype')
+# # remove connector details without presynaptic site 
+# connector_details = connector_details.dropna(subset=['presynaptic_to'])
 
-# assign hemisphere of presynaptic neuron 
+# #  map skid ids in connector details to celltypes
+# connector_details['presynaptic_celltype'] = connector_details['presynaptic_to'].apply(lambda x: get_celltype_name(x, skid_to_celltype=skid_to_celltype))
+# celltype_col_for_list(connector_details, 'postsynaptic_to', skid_to_celltype=skid_to_celltype, new_col_name='postsynaptic_celltype')
 
-connector_details['presyn_hemi'] = connector_details['presynaptic_to'].apply(lambda x: 'right' if x in right_ns else 'left' if x in left_ns else 'NA')
+# assign hemisphere of presynaptic neuron
 
 
 #%% assess bilateral symmetry of synaptic sites

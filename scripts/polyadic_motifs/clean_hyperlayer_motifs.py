@@ -122,7 +122,7 @@ for c in ct_names:
 
 #%% look at ct motifs across layers in clean hyperlayered network
 
-val_to_use = 4
+val_to_use = 3
 results_ct = {}
 for c in ct_names:
     results = hypercon.apply_multiple_functions(val_to_use, [lambda x: filter_col_presyn(x, c), lambda x: get_unique_ct_target_counts(x, remove_nan=False, ct_names=ct_names)])
@@ -203,6 +203,36 @@ ax.set_xticks(ticks=range(len(trd_ct.columns)), labels=trd_ct.columns, rotation=
 
 for xloc, cname in zip(ax.get_xticks()[::2],trd_ct.columns.get_level_values(0)[::2]):
     xpos = xloc + 0.7
+    ax.annotate(cname, xy=(xpos, 1.02), xycoords=('data', 'axes fraction'), fontsize=12, ha='center', rotation=90)
+
+#%% plotting just raw counts rather than some normalised version 
+
+res_raw = results_df.copy()
+order = ['conL', 'con_randL', 'conR','con_randR']
+res_raw.sort_index(axis=1, level=1, inplace=True, sort_remaining=False, key=lambda idx: idx.map(lambda x: order.index(x) if x in order else len(order)))
+res_raw.sort_index(axis=1, level=0, inplace=True, sort_remaining=False)
+
+# sort by something 
+ct = 'PNs'
+if ct == 'all':
+    res_raw = res_raw.loc[res_raw.sum(axis=1).nlargest(40).index, :]  # take top 40 motifs by sum across all conditions
+else: 
+    res_raw = res_raw.loc[res_raw[ct, 'conL'].nlargest(40).index, :]  
+
+# take top 
+n_plot = 40
+trd_raw = res_raw.iloc[:n_plot, :]
+max_max = np.max(trd_raw.values)
+fig, ax = plt.subplots(1, 1, figsize=(15, 12))
+
+im = ax.imshow(trd_raw, cmap='OrRd', aspect=1.1, vmin=0-max_max, vmax=max_max)
+ax.set_yticks(ticks=range(len(trd_raw.index)), labels=trd_raw.index)
+ax.set_xticks(ticks=range(len(trd_raw.columns)), labels=trd_raw.columns, rotation=90)
+cbar = plt.colorbar(im, ax=ax, fraction=0.027, pad=0.04)
+cbar.set_label('# of synapses', rotation=90, labelpad=-90, fontsize=14)
+
+for xloc, cname in zip(ax.get_xticks()[::4],trd_raw.columns.get_level_values(0)[::4]):
+    xpos = xloc + 1.5
     ax.annotate(cname, xy=(xpos, 1.02), xycoords=('data', 'axes fraction'), fontsize=12, ha='center', rotation=90)
 
 # %% check if they could just be the exact same neurons :( && remove repeats

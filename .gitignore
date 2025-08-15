@@ -12,4 +12,5 @@ __pycache__
 #hide any data or output files
 *.csv
 data/
+figure_data/
 *.pdf
